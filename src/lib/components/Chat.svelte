@@ -155,12 +155,12 @@
 	<Conversation {conversationId} {responding} />
 
 	<div class="block invisible mx-auto mt-6" class:!visible={waitingForResponse || responding}>
-		<button class="btn variant-outline-secondary mx-auto" on:click={abort}>Cancel</button>
 		<ProgressRadial
 			class="mx-auto !stroke-teal-600"
 			width="w-10"
 			stroke={60}
 			meter="stroke-teal-600" />
+		<button class="btn block variant-outline-secondary mx-auto mt-8" on:click={abort}>Cancel</button>
 	</div>
 </div>
 
