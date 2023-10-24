@@ -52,7 +52,7 @@
 			<ChatMessage {senderType} {text} {id} />
 		{/each}
 		{#if responding}
-			<ChatMessage senderType="ai" text={responding} />
+			<ChatMessage senderType="ai" text={responding} parse={false} />
 		{/if}
 	</div>
 </div>

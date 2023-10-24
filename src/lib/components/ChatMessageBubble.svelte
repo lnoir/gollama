@@ -8,6 +8,7 @@
 
 	export let senderType = '';
 	export let text = '';
+	export let parse = true;
 
 	let root: HTMLElement;
 	let sanitizedText = '';
@@ -33,6 +34,7 @@
 	});
 
 	async function sanitize(s: string) {
+		if (!parse) return s;
 		return DOMPurify.sanitize(await marked.parse(s?.trim() || ''));
 	}
 
