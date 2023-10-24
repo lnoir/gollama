@@ -4,6 +4,10 @@ A simple Ollama front-end.
 
 ![](static/screenshot_01.png)
 
+## Requirements
+- Running instance of Ollama (and at least one model)
+- Node.js 18.x
+
 ## Setup
 
 The examples below use NPM but, of course, replace with the equivalent for whichever package manager you're using.
