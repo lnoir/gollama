@@ -11,6 +11,7 @@
 		"lint": "prettier --plugin-search-dir . --check . && eslint .",
 		"format": "prettier --plugin-search-dir . --write .",
 		"tauri": "tauri",
+		"tauri:debug": "tauri build --debug",
 		"test": "vitest",
 		"prepare": "husky install"
 	},
