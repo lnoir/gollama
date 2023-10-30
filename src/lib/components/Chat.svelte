@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { ollamaService } from '$services/ollama.service';
-	import { onMount } from 'svelte';
+	import { afterUpdate, onMount } from 'svelte';
 	import type { AppDialogOptions, AppMessageOptions, Model, SettingsMap } from '../../types';
 	import {
+	currentConversationId,
 		currentConversationMessageCount,
 		type SenderType
 	} from '../../stores/conversation.store';
@@ -29,6 +30,9 @@
 		models = res || [];
 		settings = (await db.getSettingsMap()) as SettingsMap;
 		model = settings.default_model || settings.default_model || '';
+		currentConversationId.subscribe(id => {
+			conversationId = id
+		});
 	});
 
 	function abort() {
