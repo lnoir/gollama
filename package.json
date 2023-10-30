@@ -61,7 +61,9 @@
 		"dompurify": "^3.0.6",
 		"highlight.js": "^11.9.0",
 		"marked": "^9.1.2",
-		"marked-highlight": "^2.0.6"
+		"marked-highlight": "^2.0.6",
+		"tauri-plugin-log-api": "github:tauri-apps/tauri-plugin-log#v1",
+		"tauri-plugin-sql-api": "github:tauri-apps/tauri-plugin-sql#v1"
 	},
 	"license": "Apache-2.0"
 }

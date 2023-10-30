@@ -6,7 +6,8 @@
 	import { goto } from '$app/navigation';
 	import IconTrashX from 'virtual:icons/tabler/trash-x';
 	import type { DbConversation } from '../../types';
-	import { pushDialog, pushMessage } from '../../stores/app.store';
+	import { dbReady, pushDialog, pushMessage } from '../../stores/app.store';
+	import { get } from 'svelte/store';
 
 	export let show = true;
 
@@ -14,13 +15,17 @@
 	let conversationId: number;
 
 	onMount(async () => {
-		convos = await db.getConversations();
+		dbReady.subscribe(async ready => {
+			if (!ready) return;
 
-		currentConversationId.subscribe((currentId) => {
-			conversationId = Number(currentId);
-		});
-		conversationsLastUpdated.subscribe(async () => {
 			convos = await db.getConversations();
+
+			currentConversationId.subscribe((currentId) => {
+				conversationId = Number(currentId);
+			});
+			conversationsLastUpdated.subscribe(async () => {
+				convos = await db.getConversations();
+			});
 		});
 	});
 

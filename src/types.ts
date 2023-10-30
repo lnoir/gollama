@@ -24,19 +24,33 @@ export interface GenericQueueFn<T> {
 	(data: T): void;
 }
 
-export interface DbConversation {
+export interface AdapterInterface {
+  addConversation(data: DbConversation): Promise<DbConversation>;
+	getConversation(id: number): Promise<HydratedConversation | undefined>;
+	updateConversation(id: number, data: DataObject): Promise<void>;
+	updateConversationTitle(id: number, title: string): Promise<void>;
+	updateConversationContext(id: number, context: number[]): Promise<void>;
+	getConversations(): Promise<DbConversation[]>;
+	addMessage(data: DbMessage): Promise<number>;
+	deleteConversation(id: number): Promise<void>;
+	putSetting(name: string, value: string): Promise<void>;
+	getSettings(): Promise<DbSetting[]>;
+}
+
+export type DbConversation = {
 	id?: number;
 	title?: string;
 	model: string;
 	started: string;
-	context?: number[];
-	top_k?: number;
-	top_p?: number;
-	seed?: number;
-	num_ctx?: number;
+	context?: number[] | undefined;
+	system_msg?: string;
+	top_k?: number | undefined;
+	top_p?: number | undefined;
+	seed?: number | undefined;
+	num_ctx?: number | undefined;
 }
 
-export interface DbMessage {
+export type DbMessage = {
 	id?: number;
 	conversationId: number;
 	senderType: string;
@@ -44,15 +58,15 @@ export interface DbMessage {
 	time: string;
 }
 
-export interface DbSetting {
+export type DbSetting = {
 	id?: number;
 	name: string;
 	value: string | number;
-	default?: string;
+	defaultVal?: string;
 }
 
 export type HydratedConversation = DbConversation & {
-	messages: DbMessage[];
+	messages?: DbMessage[];
 };
 
 export type PromptParams = {

@@ -13,6 +13,8 @@ export const loading: Writable<boolean> = writable(false);
 
 export const activeModals = writable({});
 
+export const dbReady = writable(false);
+
 export const pushMessage = (data: AppMessageOptions) => {
 	pushModalItem(data);
 };

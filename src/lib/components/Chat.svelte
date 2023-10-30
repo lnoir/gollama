@@ -11,7 +11,7 @@
 	import { ProgressRadial } from '@skeletonlabs/skeleton';
 	import Conversation from './Conversation.svelte';
 	import { parseResponseStream } from '$lib/helpers';
-	import { pushMessage } from '../../stores/app.store';
+	import { dbReady, pushMessage } from '../../stores/app.store';
 
 	export let conversationId = 0;
 
@@ -24,14 +24,21 @@
 	let context: number[] | undefined;
 	let abortController: AbortController;
 	let abortSignal: AbortSignal;
+  let previousConversationId: number;
 
 	onMount(async () => {
 		const res = await ollamaService.getModels();
 		models = res || [];
-		settings = (await db.getSettingsMap()) as SettingsMap;
-		model = settings.default_model || settings.default_model || '';
-		currentConversationId.subscribe(id => {
-			conversationId = id
+		const dbReadyUnsub = dbReady.subscribe(async ready => {
+			settings = (await db.getSettingsMap()) as SettingsMap;
+			model = settings.default_model || settings.default_model || '';
+			dbReadyUnsub();
+		});
+		currentConversationId.subscribe(async id => {
+			if (id && previousConversationId === id) return;
+			conversationId = id;
+			const conversation = await db.getConversation(id);
+			model = conversation.model;
 		});
 	});
 

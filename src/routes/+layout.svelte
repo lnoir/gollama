@@ -25,7 +25,7 @@
 	let modalStore = getModalStore();
 	let toastStore = getToastStore();
 
-	onMount(() => {
+	onMount(async () => {
 		messageQueue.subscribe((messages) => {
 			if (!messages.length) return;
       const data = messages.shift();
