@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { ollamaService } from '$services/ollama.service';
-	import { afterUpdate, onMount } from 'svelte';
-	import type { AppDialogOptions, AppMessageOptions, Model, SettingsMap } from '../../types';
+	import { onMount } from 'svelte';
+	import type { Model, SettingsMap } from '../../types';
 	import {
 	currentConversationId,
 		currentConversationMessageCount,

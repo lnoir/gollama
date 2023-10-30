@@ -4,7 +4,7 @@
 	import '../app.css';
 	import 'highlight.js/styles/codepen-embed.min.css';
 
-	import { Modal, initializeStores, type ModalComponent, Toast, getModalStore, getToastStore, type ToastStore, type ModalStore } from '@skeletonlabs/skeleton';
+	import { Modal, initializeStores, type ModalComponent, Toast, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
 	import ChatSelector from '$components/ChatSelector.svelte';
 	import TopBar from '$components/TopBar.svelte';
 	import { onMount } from 'svelte';
