@@ -13,7 +13,7 @@
 </script>
 
 <button
-	class="btn absolute right-0"
+	class="btn absolute right-0 z-20"
 	{title}
 	class:top-5={position === 'top'}
 	class:bottom-5={position !== 'top'}
