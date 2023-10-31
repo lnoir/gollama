@@ -23,8 +23,17 @@
 		})
 	);
 
+	const renderer = new marked.Renderer();
+	renderer.list = (body, ordered) => {
+		const tag = ordered ? 'ol' : 'ul';
+		return `<${tag} class="list-decimal ml-8">${body}</${tag}>`;
+	};
+	renderer.listitem = (body) => {
+		return `<li>${body}</li>`;
+	};
+
 	onMount(async () => {
-		sanitizedText = DOMPurify.sanitize(await marked.parse(text || ''));
+		sanitizedText = await sanitize(text || '');
 		await tick();
 		applyCodeClipper();
 	});
@@ -35,7 +44,7 @@
 
 	async function sanitize(s: string) {
 		if (!parse) return s;
-		return DOMPurify.sanitize(await marked.parse(s?.trim() || ''));
+		return DOMPurify.sanitize(await marked.parse(s?.trim() || '', {renderer}));
 	}
 
 	function applyCodeClipper() {
@@ -78,3 +87,10 @@
 		{@html sanitizedText}
 	</div>
 </div>
+
+<style>
+	/* prettier-ignore svelte(unused-css-selector) */
+	ol {
+		list-style-type: decimal !important;
+	}
+</style>
