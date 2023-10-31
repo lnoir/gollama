@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { ollamaService } from '$services/ollama.service';
-	import { onMount, tick } from 'svelte';
+	import { onMount } from 'svelte';
 	import type { Model, SettingsMap } from '../../types';
 	import {
 	currentConversationId,
@@ -10,7 +10,7 @@
 	import { db } from '$services/db.service';
 	import { ProgressRadial } from '@skeletonlabs/skeleton';
 	import Conversation from './Conversation.svelte';
-	import { updateMenuOverlap, parseResponseStream } from '$lib/helpers';
+	import { parseResponseStream } from '$lib/helpers';
 	import { dbReady, messageInputFocused, pushMessage } from '../../stores/app.store';
 	import { info } from 'tauri-plugin-log-api';
 	import { emit } from '@tauri-apps/api/event';
@@ -27,6 +27,7 @@
 	let abortController: AbortController;
 	let abortSignal: AbortSignal;
   let previousConversationId: number;
+	let mainContainer: HTMLElement | null;
 
 	onMount(async () => {
 		const res = await ollamaService.getModels();
@@ -44,7 +45,16 @@
 			if (!conversation) return;
 			model = conversation.model;
 		});
+		mainContainer = document.getElementById('main');
 	});
+
+	function scrollToBottom() {
+		mainContainer?.scrollTo({
+			left: 0,
+			top: mainContainer.scrollHeight,
+			behavior: 'smooth'
+		});
+	}
 
 	function abort() {
 		abortController.abort();
@@ -79,7 +89,7 @@
       }
 
       let conversation = await db.getConversation(conversationId);
-      context = conversation.context;
+      context = JSON.parse(conversation.context);
 
       await addMessage(Number(conversationId), 'human', prompt);
 
@@ -93,6 +103,7 @@
 
       const updater = (text: string) => {
         responding = text;
+				scrollToBottom();
       };
       const { text: reply, context: newContext } = await parseResponseStream(res, updater);
       context = newContext;
@@ -105,9 +116,10 @@
       await db.updateConversationContext(conversationId, newContext);
 
       responding = '';
+			scrollToBottom();
       waitingForResponse = false;
     } catch (err) {
-      console.log('@err', err);
+      console.error('@err', err);
     }
   }
 

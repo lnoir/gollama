@@ -82,7 +82,7 @@ export class SQLiteAdapter extends BaseAdapter {
 	}
 
 	async updateConversationContext(id: number, context: number[]) {
-    const res = await this.updateConversation(id, {context});
+    const res = await this.updateConversation(id, {context: JSON.stringify(context)});
 		this.bumpUpdate();
 		return res;
 	}

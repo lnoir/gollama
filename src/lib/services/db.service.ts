@@ -33,7 +33,7 @@ export class ChatDb {
 	}
 
 	async updateConversationContext(id: number, context: number[]) {
-		const res = await this.db.updateConversationContext(id, context );
+		const res = await this.db.updateConversationContext(id, context);
 		this.bumpUpdate();
 		return res;
 	}

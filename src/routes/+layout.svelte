@@ -50,7 +50,7 @@
 
 <div class="fixed h-full w-full top-0 left-0 p-0 m-9=0 pointer-events-none">
 	<div class="flex flex-col h-full w-full justify-center">
-		<span class="text-3xl m-auto text-slate-700">gOllama</span>
+		<span class="text-2xl m-auto text-slate-700">gOllama</span>
 	</div>
 </div>
 
@@ -59,8 +59,8 @@
 	on:toggleSettings={(e) => (showSettings = e.detail)}
 />
 
-<div class="p-0 pt-16 overflow-auto h-screen">
+<section id="main" class="p-0 pt-16 overflow-auto h-screen overscroll-none">
 	<ChatSelector show={showMenu} />
 	<SettingsPanel show={showSettings} />
 	<slot />
-</div>
+</section>
