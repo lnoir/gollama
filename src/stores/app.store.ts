@@ -6,14 +6,12 @@ import type {
 } from '../types';
 
 export const messageQueue: Writable<AppModalOptions[]> = writable([]);
-
 export const dialogQueue: Writable<AppModalOptions[]> = writable([]);
-
 export const loading: Writable<boolean> = writable(false);
-
 export const activeModals = writable({});
-
 export const dbReady = writable(false);
+export const menuOverlapping = writable(false);
+export const messageInputFocused = writable(false);
 
 export const pushMessage = (data: AppMessageOptions) => {
 	pushModalItem(data);

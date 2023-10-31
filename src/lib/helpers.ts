@@ -1,5 +1,6 @@
 import type { ModalStore, ToastStore } from '@skeletonlabs/skeleton';
 import type { AppDialogOptions, AppMessageOptions, ParsedPromptResponse } from '../types';
+import { menuOverlapping } from '../stores/app.store';
 
 /**
  * Displays stated component in a modal
@@ -67,4 +68,26 @@ export async function parseResponseStream(
 
 		readStream();
 	});
+}
+
+/**
+ * Checks if two elements intersect in the viewport.
+ * 
+ * @returns boolean
+ */
+export function updateMenuOverlap() {
+	const elem1 = document.getElementById('chat-selector');
+	const elem2 = document.getElementById('message-input');
+	if (!elem1 || ! elem2) return;
+	
+	const rect1 = elem1.getBoundingClientRect();
+	const rect2 = elem2.getBoundingClientRect();
+
+	const overlapping = (
+		rect1.top < rect2.bottom &&
+		rect1.bottom > rect2.top &&
+		rect1.left < rect2.right &&
+		rect1.right > rect2.left
+	);
+	menuOverlapping.update(() => overlapping);
 }

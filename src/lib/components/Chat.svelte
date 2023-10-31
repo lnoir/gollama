@@ -10,8 +10,8 @@
 	import { db } from '$services/db.service';
 	import { ProgressRadial } from '@skeletonlabs/skeleton';
 	import Conversation from './Conversation.svelte';
-	import { parseResponseStream } from '$lib/helpers';
-	import { dbReady, pushMessage } from '../../stores/app.store';
+	import { updateMenuOverlap, parseResponseStream } from '$lib/helpers';
+	import { dbReady, messageInputFocused, pushMessage } from '../../stores/app.store';
 
 	export let conversationId = 0;
 
@@ -37,7 +37,9 @@
 		currentConversationId.subscribe(async id => {
 			if (id && previousConversationId === id) return;
 			conversationId = id;
+			if (!id) return;
 			const conversation = await db.getConversation(id);
+			if (!conversation) return;
 			model = conversation.model;
 		});
 	});
@@ -149,6 +151,11 @@
 		const found = models.find((m) => m.name === model);
 		return !!found;
 	}
+
+	function updateFocused(focused: boolean) {
+		messageInputFocused.update(() => focused);
+		if (focused) updateMenuOverlap();
+	}
 </script>
 
 <div class="block mx-auto max-w-3xl p-4 pt-0 pb-32">
@@ -178,10 +185,13 @@
 <div class="fixed left-0 bottom-0 w-full z-30">
 	<div class="block w-2/3 m-4 mx-auto max-w-3xl">
 		<textarea
+			id="message-input"
 			class="textarea resize-none overflow-hidden w-full dark:bg-slate-900 px-4 py-2 max-h-48"
 			placeholder="Type something..."
 			bind:value={prompt}
 			on:keydown={handleKeyPress}
+			on:focus={() => updateFocused(true)}
+			on:blur={() => updateFocused(false)}
 			disabled={!model || waitingForResponse} />
 	</div>
 </div>

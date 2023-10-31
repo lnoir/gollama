@@ -6,7 +6,8 @@
 	import { goto } from '$app/navigation';
 	import IconTrashX from 'virtual:icons/tabler/trash-x';
 	import type { DbConversation } from '../../types';
-	import { dbReady, pushDialog, pushMessage } from '../../stores/app.store';
+	import { dbReady, menuOverlapping, messageInputFocused, pushDialog, pushMessage } from '../../stores/app.store';
+	import { updateMenuOverlap } from '../helpers';
 	import { get } from 'svelte/store';
 
 	export let show = true;
@@ -25,6 +26,10 @@
 			});
 			conversationsLastUpdated.subscribe(async () => {
 				convos = await db.getConversations();
+			});
+			menuOverlapping.subscribe(overlap => {
+				if (!overlap || !show || !get(messageInputFocused)) return;
+				show = false;
 			});
 		});
 	});
@@ -57,8 +62,11 @@
 	}
 </script>
 
+<svelte:window on:resize={updateMenuOverlap} />
+
 {#if show}
 	<div
+		id="chat-selector"
 		class="block fixed left-0 z-40 h-full bg-gray-900 p-5 pb-28 overflow-y-scroll"
 		transition:fly={{ duration: 400, x: -300 }}>
 		{#if convos?.length}
