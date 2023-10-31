@@ -10,13 +10,15 @@
 	import { updateMenuOverlap } from '../helpers';
 	import { get } from 'svelte/store';
 	import { appWindow } from "@tauri-apps/api/window";
-	import { info } from 'tauri-plugin-log-api';
+	import { info, trace } from 'tauri-plugin-log-api';
+	import { listen } from '@tauri-apps/api/event';
 
 	export let show = true;
 
 	let convos: DbConversation[] = [];
 	let conversationId: number;
 	let windowUnsub: any;
+	let toggleUnsub: any;
 
 	onMount(async () => {
 		dbReady.subscribe(async ready => {
@@ -30,19 +32,25 @@
 			conversationsLastUpdated.subscribe(async () => {
 				convos = await db.getConversations();
 			});
-			menuOverlapping.subscribe(overlap => {
-				info(`Menu overlap: ${overlap}`);
-				if (!overlap || !show || !get(messageInputFocused)) return;
-				show = false;
-			});
+		});
+		
+		menuOverlapping.subscribe(overlap => {
+			info(`Menu overlap: ${overlap}`);
+			if (!overlap || !show || !get(messageInputFocused)) return;
+			show = false;
 		});
 		windowUnsub = await appWindow.onResized(() => {
 			updateMenuOverlap();
 		});
+		toggleUnsub = await listen('close_menu', () => {
+			show = false;
+		});
 	});
 
 	onDestroy(() => {
+		trace('destroyed')
 		windowUnsub();
+		toggleUnsub();
 	});
 
 	function loadConversation(id?: number) {

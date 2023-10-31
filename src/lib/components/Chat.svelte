@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { ollamaService } from '$services/ollama.service';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import type { Model, SettingsMap } from '../../types';
 	import {
 	currentConversationId,
@@ -13,6 +13,7 @@
 	import { updateMenuOverlap, parseResponseStream } from '$lib/helpers';
 	import { dbReady, messageInputFocused, pushMessage } from '../../stores/app.store';
 	import { info } from 'tauri-plugin-log-api';
+	import { emit } from '@tauri-apps/api/event';
 
 	export let conversationId = 0;
 
@@ -153,9 +154,11 @@
 		return !!found;
 	}
 
-	function updateFocused(focused: boolean) {
+	async function updateFocused(focused: boolean) {
 		messageInputFocused.update(() => focused);
-		if (focused) updateMenuOverlap();
+		if (focused) {
+			emit('close_menu');
+		}
 		info(`Message input focused: ${focused}`);
 	}
 </script>

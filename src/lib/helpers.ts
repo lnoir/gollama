@@ -1,6 +1,7 @@
 import type { ModalStore, ToastStore } from '@skeletonlabs/skeleton';
 import type { AppDialogOptions, AppMessageOptions, ParsedPromptResponse } from '../types';
 import { menuOverlapping } from '../stores/app.store';
+import { info } from 'tauri-plugin-log-api';
 
 /**
  * Displays stated component in a modal
@@ -89,5 +90,7 @@ export function updateMenuOverlap() {
 		rect1.left < rect2.right &&
 		rect1.right > rect2.left
 	);
+	info('update menu overlap')
 	menuOverlapping.update(() => overlapping);
 }
+
