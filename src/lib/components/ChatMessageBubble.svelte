@@ -87,10 +87,3 @@
 		{@html sanitizedText}
 	</div>
 </div>
-
-<style>
-	/* prettier-ignore svelte(unused-css-selector) */
-	ol {
-		list-style-type: decimal !important;
-	}
-</style>
