@@ -12,6 +12,7 @@
 	import Conversation from './Conversation.svelte';
 	import { updateMenuOverlap, parseResponseStream } from '$lib/helpers';
 	import { dbReady, messageInputFocused, pushMessage } from '../../stores/app.store';
+	import { info } from 'tauri-plugin-log-api';
 
 	export let conversationId = 0;
 
@@ -155,6 +156,7 @@
 	function updateFocused(focused: boolean) {
 		messageInputFocused.update(() => focused);
 		if (focused) updateMenuOverlap();
+		info(`Message input focused: ${focused}`);
 	}
 </script>
 

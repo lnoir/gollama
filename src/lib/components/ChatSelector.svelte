@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { conversationsLastUpdated, currentConversationId } from '../../stores/conversation.store';
 	import { db } from '../services/db.service';
 	import { fly } from 'svelte/transition';
@@ -9,11 +9,14 @@
 	import { dbReady, menuOverlapping, messageInputFocused, pushDialog, pushMessage } from '../../stores/app.store';
 	import { updateMenuOverlap } from '../helpers';
 	import { get } from 'svelte/store';
+	import { appWindow } from "@tauri-apps/api/window";
+	import { info } from 'tauri-plugin-log-api';
 
 	export let show = true;
 
 	let convos: DbConversation[] = [];
 	let conversationId: number;
+	let windowUnsub: any;
 
 	onMount(async () => {
 		dbReady.subscribe(async ready => {
@@ -28,10 +31,18 @@
 				convos = await db.getConversations();
 			});
 			menuOverlapping.subscribe(overlap => {
+				info(`Menu overlap: ${overlap}`);
 				if (!overlap || !show || !get(messageInputFocused)) return;
 				show = false;
 			});
 		});
+		windowUnsub = await appWindow.onResized(() => {
+			updateMenuOverlap();
+		});
+	});
+
+	onDestroy(() => {
+		windowUnsub();
 	});
 
 	function loadConversation(id?: number) {
