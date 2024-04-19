@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { ollamaService } from '$services/ollama.service';
-	import { onMount, tick } from 'svelte';
+	import { onMount } from 'svelte';
 	import type { Model, SettingsMap } from '../../types';
 	import {
 	currentConversationId,
@@ -14,7 +14,7 @@
 	import { dbReady, messageInputFocused, pushMessage } from '../../stores/app.store';
 	import { info } from 'tauri-plugin-log-api';
 	import { emit } from '@tauri-apps/api/event';
-	import { IconMessage, IconPlane, IconSend } from '@tabler/icons-svelte';
+	import IconMessage from 'virtual:icons/tabler/message';
 	import ButtonScrollBottom from './Buttons/ButtonScrollBottom.svelte';
 
 	export let conversationId = 0;
