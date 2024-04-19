@@ -186,7 +186,7 @@
 							name="range-slider"
 							class="dark:accent-cyan-500"
 							min={1024}
-							max={4096}
+							max={8192}
 							step={1024}
 							accent="dark:accent-cyan-600"
 							data-name="options.num_ctx"

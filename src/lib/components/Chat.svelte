@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { ollamaService } from '$services/ollama.service';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import type { Model, SettingsMap } from '../../types';
 	import {
 	currentConversationId,
@@ -14,12 +14,15 @@
 	import { dbReady, messageInputFocused, pushMessage } from '../../stores/app.store';
 	import { info } from 'tauri-plugin-log-api';
 	import { emit } from '@tauri-apps/api/event';
+	import { IconMessage, IconPlane, IconSend } from '@tabler/icons-svelte';
+	import ButtonScrollBottom from './Buttons/ButtonScrollBottom.svelte';
 
 	export let conversationId = 0;
 
 	let prompt = '';
 	let models: Model[] = [];
 	let model = '';
+	let waitingForInitialResponse = false;
 	let waitingForResponse = false;
 	let responding = '';
 	let settings: SettingsMap;
@@ -48,13 +51,26 @@
 		mainContainer = document.getElementById('main');
 	});
 
-	function scrollToBottom() {
+	function scrollToBottom(pad = 150) {
 		mainContainer?.scrollTo({
 			left: 0,
 			top: mainContainer.scrollHeight,
 			behavior: 'smooth'
 		});
 	}
+
+	/*
+	function scrollToBottom() {
+		if (!mainContainer) return;
+		const newContentHeight = mainContainer?.scrollHeight - mainContainer.offsetHeight;
+		console.log({newContentHeight})
+		mainContainer?.scrollTo({
+			left: 0,
+			top: newContentHeight,// + 150,
+			behavior: 'smooth'
+		});
+	}
+	*/
 
 	function abort() {
 		abortController.abort();
@@ -74,6 +90,7 @@
       return;
     }
 
+		waitingForInitialResponse = true;
     waitingForResponse = true;
     let tempPrompt = prompt;
     abortController = new AbortController();
@@ -92,6 +109,9 @@
       context = JSON.parse(conversation.context);
 
       await addMessage(Number(conversationId), 'human', prompt);
+			setTimeout(() => {
+				scrollToBottom(500);
+			}, 10);
 
       const res = await ollamaService.sendPrompt(
         { prompt, model, context },
@@ -100,10 +120,17 @@
       if (!res) return;
 
       prompt = '';
-
+			waitingForInitialResponse = false;
+			
       const updater = (text: string) => {
         responding = text;
-				scrollToBottom();
+				if (!mainContainer) return;
+
+				const pad = 100;
+				const scrolled = mainContainer.getBoundingClientRect().bottom + mainContainer.scrollTop + pad;
+				if (scrolled >= mainContainer.scrollHeight) {
+					setTimeout(scrollToBottom);
+				}
       };
       const { text: reply, context: newContext } = await parseResponseStream(res, updater);
       context = newContext;
@@ -116,8 +143,8 @@
       await db.updateConversationContext(conversationId, newContext);
 
       responding = '';
-			scrollToBottom();
       waitingForResponse = false;
+			setTimeout(scrollToBottom, 250);
     } catch (err) {
       console.error('@err', err);
     }
@@ -139,7 +166,7 @@
 		const res = await ollamaService.sendPrompt({
 			prompt,
 			model,
-			options: { top_k: 10, top_p: 0.5 }
+			options: { top_k: 10, top_p: 0.20 }
 		});
 		if (res) {
 			({ text } = await parseResponseStream(res));
@@ -175,7 +202,7 @@
 	}
 </script>
 
-<div class="block mx-auto max-w-3xl p-4 pt-0 pb-32">
+<div class="block relative mx-auto max-w-3xl p-4 pt-0 pb-20">
 	<select
 		class="select block max-w-lg mx-auto my-2 dark:bg-slate-800 text-slate-300"
 		placeholder="Select a model"
@@ -190,25 +217,42 @@
 	<Conversation {conversationId} {responding} />
 
 	<div class="block invisible mx-auto mt-6" class:!visible={waitingForResponse || responding}>
+		{#if waitingForInitialResponse}
 		<ProgressRadial
 			class="mx-auto !stroke-teal-600"
 			width="w-10"
 			stroke={60}
 			meter="stroke-teal-600" />
-		<button class="btn block variant-outline-secondary mx-auto mt-8" on:click={abort}>Cancel</button>
+		{/if}
+		<!-- <button class="btn block variant-outline-secondary mx-auto mt-8" on:click={abort}>Cancel</button> -->
 	</div>
+
+	{#if waitingForResponse || responding} 
+	<ButtonScrollBottom target="#conversation" root="#main" />
+	{/if}
 </div>
 
 <div class="fixed left-0 bottom-0 w-full z-30">
-	<div class="block w-2/3 m-4 mx-auto max-w-3xl">
+	<div class="flex w-2/3 m-4 mx-auto max-w-3xl max-h-16 dark:bg-slate-900 rounded-md border border-slate-500">
 		<textarea
 			id="message-input"
-			class="textarea resize-none overflow-hidden w-full dark:bg-slate-900 px-4 py-2 max-h-48"
+			class="textarea resize-none rounded-none rounded-s-md border-none overflow-hidden w-full bg-transparent dark:bg-slate-900 px-4 py-2 max-h-48"
 			placeholder="Type something..."
 			bind:value={prompt}
 			on:keydown={handleKeyPress}
 			on:focus={() => updateFocused(true)}
 			on:blur={() => updateFocused(false)}
 			disabled={!model || waitingForResponse} />
+			<div id="input-button-panel"
+				class="flex p-2 bg-">
+				<button class="btn" on:click={sendPrompt}>
+					<IconMessage />
+				</button>
+				<!--
+				<button class="btn">
+					Multiline
+				</button>
+				-->
+			</div>
 	</div>
 </div>

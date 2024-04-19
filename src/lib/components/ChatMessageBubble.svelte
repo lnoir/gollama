@@ -54,6 +54,7 @@
 			const target = document.createElement('div');
 			const el = e.parentElement as HTMLElement;
 			el.classList.add('relative');
+			el.classList.add('whitespace-break-spaces')
 			el.appendChild(target);
 			new CopyButton({
 				target,
@@ -78,7 +79,7 @@
 		</div>
 	</div>
 	<div
-		class="p-4 whitespace-pre-wrap rounded-md overflow-y-scroll"
+		class="p-4 whitespace-pre-wrap rounded-md"
 		class:bg-zinc-900={senderType === 'ai'}
 		class:rounded-tr-none={senderType === 'ai'}
 		class:rounded-tl-none={senderType === 'human'}

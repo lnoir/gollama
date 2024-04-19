@@ -45,7 +45,7 @@
 	}
 </script>
 
-<div class="block mx-auto max-w-3xl p-4">
+<div id="conversation" class="block mx-auto max-w-3xl p-4">
 	<div class="block w-full">
 		{#each messages as msg}
 			{@const { senderType, text, id } = msg}
