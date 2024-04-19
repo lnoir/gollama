@@ -44,7 +44,8 @@ class OllamaService {
 			context,
 			stream: true,
 			options: {
-				...defaults.options
+				...defaults.options,
+				num_ctx: Number(defaults.options.num_ctx)
 			}
 		};
 		return await this.$postRequest('/generate', body, requestOptions);
