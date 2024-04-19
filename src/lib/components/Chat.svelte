@@ -16,6 +16,7 @@
 	import { emit } from '@tauri-apps/api/event';
 	import IconMessage from 'virtual:icons/tabler/message';
 	import ButtonScrollBottom from './Buttons/ButtonScrollBottom.svelte';
+	import IconX from 'virtual:icons/tabler/x';
 
 	export let conversationId = 0;
 
@@ -58,19 +59,6 @@
 			behavior: 'smooth'
 		});
 	}
-
-	/*
-	function scrollToBottom() {
-		if (!mainContainer) return;
-		const newContentHeight = mainContainer?.scrollHeight - mainContainer.offsetHeight;
-		console.log({newContentHeight})
-		mainContainer?.scrollTo({
-			left: 0,
-			top: newContentHeight,// + 150,
-			behavior: 'smooth'
-		});
-	}
-	*/
 
 	function abort() {
 		abortController.abort();
@@ -224,12 +212,9 @@
 			stroke={60}
 			meter="stroke-teal-600" />
 		{/if}
-		<!-- <button class="btn block variant-outline-secondary mx-auto mt-8" on:click={abort}>Cancel</button> -->
 	</div>
 
-	{#if waitingForResponse || responding} 
 	<ButtonScrollBottom target="#conversation" root="#main" />
-	{/if}
 </div>
 
 <div class="fixed left-0 bottom-0 w-full z-30">
@@ -245,14 +230,15 @@
 			disabled={!model || waitingForResponse} />
 			<div id="input-button-panel"
 				class="flex p-2 bg-">
-				<button class="btn" on:click={sendPrompt}>
+				{#if waitingForResponse || responding}
+				<button class="btn" on:click={abort} title="Cancel">
+					<IconX />
+				</button>
+				{:else}
+				<button class="btn" on:click={sendPrompt} title="Send">
 					<IconMessage />
-				</button>
-				<!--
-				<button class="btn">
-					Multiline
-				</button>
-				-->
+				</button>	
+				{/if}
 			</div>
 	</div>
 </div>
