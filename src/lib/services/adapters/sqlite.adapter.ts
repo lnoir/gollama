@@ -52,6 +52,7 @@ export class SQLiteAdapter extends BaseAdapter {
   }
 
 	async addConversation(data: DbConversation) {
+    console.log({data})
 		return this.insertInto('conversations', data);
 	}
 
@@ -89,13 +90,21 @@ export class SQLiteAdapter extends BaseAdapter {
 
 	async getConversations() {
     return await this.db.select(
-      `select * from conversations`
+      `select * from conversations order by id desc`
     );
 	}
 
 	async addMessage(data: DbMessage) {
 		return this.insertInto('messages', data);
 	}
+
+  async deleteMessage(id: number) {
+    await this.db.execute(
+      `DELETE FROM messages WHERE id = $1`,
+      [id]
+    );
+    this.bumpUpdate();
+  }
 
 	async deleteConversation(id: number) {
     await this.db.execute(

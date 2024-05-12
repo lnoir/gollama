@@ -56,10 +56,13 @@
 	},
 	"type": "module",
 	"dependencies": {
+		"@langchain/community": "^0.0.55",
+		"@langchain/core": "^0.1.62",
 		"@tabler/icons-svelte": "^2.39.0",
 		"dexie": "^4.0.1-beta.1",
 		"dompurify": "^3.0.6",
 		"highlight.js": "^11.9.0",
+		"langchain": "^0.1.36",
 		"marked": "^9.1.2",
 		"marked-highlight": "^2.0.6",
 		"tauri-plugin-log-api": "github:tauri-apps/tauri-plugin-log#v1",

@@ -6,7 +6,6 @@ export class ChatDb {
 	db;
 
 	constructor() {
-		//this.db = new DexieAdapter();
 		this.db = new SQLiteAdapter();
 	}
 
@@ -48,9 +47,12 @@ export class ChatDb {
 		return res;
 	}
 
+	async deleteMessage(id: number) {
+		await this.db.deleteMessage(id);
+	}
+
 	async deleteConversation(id: number) {
 		await this.db.deleteConversation(id);
-		this.bumpUpdate();
 	}
 
 	async putSetting(name: string, value: string) {
@@ -64,16 +66,18 @@ export class ChatDb {
 	async getSettingsMap() {
 		const settings = (await this.getSettings()) as unknown as any[];
 		const map: SettingsMap = { options: {} };
+		//console.debug('@settings', settings);
 		settings.forEach((s) => this.settingToObject(s, map));
 		return map;
 	}
 
 	settingToObject(setting: DbSetting, settingsMap: SettingsMap): void {
 		const levels = setting.name.split('.');
+		const nums = ['top_k', 'top_p', 'seed', 'num_ctx'];
 		// eslint-disable @typescript-eslint/no-explicit-any
-		levels.reduce((prev: any, curr: string, i: number) => {
+		return levels.reduce((prev: any, curr: string, i: number) => {
 			if (i === levels.length - 1) {
-				prev[curr] = setting.value;
+				prev[curr] = nums.includes(curr) ? Number(setting.value) : setting.value;
 				return settingsMap;
 			} else if (!prev[curr]) {
 				prev[curr] = {};

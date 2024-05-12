@@ -24,6 +24,11 @@ export interface GenericQueueFn<T> {
 	(data: T): void;
 }
 
+export type PromptParamMessage = {
+	role: 'system' | 'assistant'| 'user';
+	content: string;
+}
+
 export interface AdapterInterface {
   addConversation(data: DbConversation): Promise<DbConversation>;
 	getConversation(id: number): Promise<HydratedConversation | undefined>;
@@ -43,7 +48,7 @@ export type DbConversation = {
 	model: string;
 	started: string;
 	context?: number[] | undefined;
-	system_msg?: string;
+	system?: string;
 	top_k?: number | undefined;
 	top_p?: number | undefined;
 	seed?: number | undefined;
@@ -70,8 +75,11 @@ export type HydratedConversation = DbConversation & {
 };
 
 export type PromptParams = {
-	prompt: string;
+	prompt?: string;
 	model: string;
+	stream?: boolean;
+	format?: 'json'; // only accepted value at the moment
+	messages: PromptParamMessage[];
 	context?: number[];
 	options?: ModelOptions;
 };
@@ -101,7 +109,10 @@ export type ModelParams = {
 	top_p: number;
 	seed: number;
 	num_ctx: number;
+	temperature: number;
 };
+
+export type ModelOptions = Partial<ModelParams>;
 
 export type ParsedPromptResponse = {
 	text: string;
@@ -117,12 +128,12 @@ export type SettingsMap = {
 	[key: string]: DbValue | object;
 };
 
-export type ModelOptions = {
+/*{
 	top_k?: number;
 	top_p?: number;
 	seed?: number;
 	num_ctx?: number;
-};
+};*/
 
 export type DbValue = number | number[] | string | boolean | undefined | null;
 

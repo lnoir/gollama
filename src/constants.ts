@@ -25,5 +25,7 @@ export const DB_CREATE_STATEMENTS = [
     name TEXT NOT NULL,
     value TEXT DEFAULT "0",
     defaultVal TEXT DEFAULT "0"
-  )`
+  )`,
+  `CREATE VIRTUAL TABLE ft_conversations USING FTS5(title, conversationId)`,
+  `CREATE VIRTUAL TABLE ft_messages USING FTS5(text, messageId)`,
 ];

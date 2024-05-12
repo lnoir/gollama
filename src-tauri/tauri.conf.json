@@ -29,8 +29,8 @@
         "all": true,
         "request": true,
         "scope": [
-          "http://localhost:11434/*",
-          "http://127.0.0.1:11434/*"
+          "http://*",
+          "https://*"
         ]
       }
     },
@@ -76,10 +76,10 @@
     "windows": [
       {
         "fullscreen": false,
-        "height": 600,
+        "height": 820,
         "resizable": true,
         "title": "gOllama",
-        "width": 800
+        "width": 1350
       }
     ]
   }

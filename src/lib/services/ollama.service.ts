@@ -37,18 +37,21 @@ class OllamaService {
 
 	async sendPrompt(data: PromptParams, requestOptions?: RequestOptions) {
 		const defaults = await db.getSettingsMap();
-		const { prompt, model, context } = data;
+		const { prompt, model, context, messages, stream, options, format } = data;
 		const body = {
 			prompt,
 			model,
+			format,
 			context,
-			stream: true,
+			messages,
+			stream: stream ?? true,
 			options: {
 				...defaults.options,
-				num_ctx: Number(defaults.options.num_ctx)
+				...options
 			}
 		};
-		return await this.$postRequest('/generate', body, requestOptions);
+		console.log(JSON.stringify(body, null, 2));
+		return await this.$postRequest('/chat', body, requestOptions);
 	}
 
 	async getModels(): Promise<Model[]> {

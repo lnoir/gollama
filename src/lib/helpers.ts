@@ -22,6 +22,8 @@ export function showToast(toastStore: ToastStore, options: AppMessageOptions) {
 
 /**
  * Parses Ollama API response from the /generate endpoing
+ * 
+ * @deprecated Moved to using Ollama's chat completion endpoint
  *
  * @param readableStream ReadableStream return from body from fetch response
  * @param updater function An optional callback that receives a string of text parsed so far
@@ -31,6 +33,7 @@ export async function parseResponseStream(
 	readableStream: ReadableStream<Uint8Array>,
 	updater?: (text: string) => void
 ): Promise<ParsedPromptResponse> {
+	console.log('@parseResponseStream readableStream:', readableStream)
 	return new Promise((resolve, reject) => {
 		const reader = readableStream?.getReader();
 		const textDecoder = new TextDecoder('utf-8');
@@ -72,6 +75,57 @@ export async function parseResponseStream(
 }
 
 /**
+ * Parses Ollama API response from the /generate endpoing
+ *
+ * @param readableStream ReadableStream return from body from fetch response
+ * @param updater function An optional callback that receives a string of text parsed so far
+ * @returns Object { text: string, context: number[] }
+ */
+export async function parseChatResponseStream(
+	readableStream: ReadableStream<Uint8Array>,
+	updater?: (text: string) => void
+): Promise<ParsedPromptResponse> {
+	return new Promise((resolve, reject) => {
+		const reader = readableStream?.getReader();
+		const textDecoder = new TextDecoder('utf-8');
+		let text = '';
+
+		// Just to make it easier to pinpoint any issues
+		let currentStreamValue = '';
+		let currentStreamPart = '';
+
+		if (updater) updater(text);
+
+		const readStream: () => Promise<void> = async () => {
+			if (!reader) return resolve({ text, context: [] });
+			const { value, done } = await reader.read();
+			if (done) return resolve({ text, context: [] });
+			try {
+				const decoded = textDecoder.decode(value);
+				currentStreamValue = decoded;
+				const parts = decoded.split('\n');
+				for (const part of parts.filter((p) => !!p?.trim())) {
+					//console.log('@part', part)
+					const json = JSON.parse(textDecoder.decode(value));
+					if (json.done === true) {
+						const { context } = json;
+						return resolve({ text, context });
+					}
+					if (json.message?.content) text += json.message?.content;
+					if (updater) updater(text);
+				}
+				return readStream();
+			} catch (err) {
+				console.error({ currentStreamPart, currentStreamValue }, err);
+				return reject(err);
+			}
+		};
+
+		readStream();
+	});
+}
+
+/**
  * Checks if two elements intersect in the viewport.
  * 
  * @returns boolean
@@ -94,3 +148,81 @@ export function updateMenuOverlap() {
 	menuOverlapping.update(() => overlapping);
 }
 
+export function runJsCodeInIframe0(jsCode: string): Promise<string | Error | null> {
+	const iframe = document.createElement('iframe');
+  iframe.name = `js-execution-frame-${Date.now()}`;
+  iframe.srcdoc = `
+    <html>
+      <head></head>
+      <body>
+        <script>
+          try {
+            ${jsCode};
+            window.parent.postMessage({ type: 'OUTPUT', output: console.log().join('\n') }, '*');
+          } catch (error) {
+            window.parent.postMessage({ type: 'ERROR', error }, '*');
+          }
+        </script>
+      </body>
+    </html>
+  `;
+  document.body.appendChild(iframe);
+
+  return new Promise((resolve, reject) => {
+    // Post a message to the parent window when the script finishes executing
+    iframe.contentWindow?.postMessage({ type: 'FINISHED' }, '*');
+
+    // Listen for the FINISHED and OUTPUT messages and resolve or reject accordingly
+    window.addEventListener('message', (event) => {
+      if (event.data.type === 'FINISHED') {
+        iframe.remove(); // Remove the iframe once its work is done
+        resolve(null);
+      } else if (event.data.type === 'OUTPUT') {
+        resolve(event.data.output);
+      } else if (event.data.type === 'ERROR') {
+        reject(new Error(event.data.error));
+      }
+    });
+  });
+}
+
+export function runJsCodeInIframe(
+	{ code }:
+	{ code: string }
+) {
+	const iframe  = document.createElement('iframe'); 
+	iframe.name  = `js-execution-frame-${Date.now()}`; 
+	iframe.srcdoc  = `
+			<html>
+				<head></head>
+				<body>
+					<script>
+						try {
+							const callback = (${code});
+							window.parent.postMessage({ type: 'OUTPUT', output: callback }, '*');
+						} catch (error) {
+							window.parent.postMessage({ type: 'ERROR', error }, '*');
+						}
+					</script>
+				</body>
+			</html>
+	`;
+	document.body.appendChild(iframe);
+
+	return new Promise((resolve, reject) => {
+		// Post a message to the parent window when the script finishes executing
+		iframe.contentWindow?.postMessage({ type: 'FINISHED' }, '*');
+
+		// Listen for the FINISHED and OUTPUT messages and resolve or reject accordingly
+		window.addEventListener('message', (event) => {
+			if (event.data.type === 'FINISHED') {
+				iframe.remove(); // Remove the iframe once its work is done
+				resolve(null);
+			} else if (event.data.type === 'OUTPUT') {
+				resolve(event.data.output);
+			} else if (event.data.type === 'ERROR') {
+				reject(new Error(event.data.error));
+			}
+		});
+	});
+}

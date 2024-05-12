@@ -5,18 +5,21 @@
 	import {
 	currentConversationId,
 		currentConversationMessageCount,
+		type Message,
 		type SenderType
 	} from '../../stores/conversation.store';
 	import { db } from '$services/db.service';
 	import { ProgressRadial } from '@skeletonlabs/skeleton';
 	import Conversation from './Conversation.svelte';
-	import { parseResponseStream } from '$lib/helpers';
+	import { parseChatResponseStream, runJsCodeInIframe } from '$lib/helpers';
 	import { dbReady, messageInputFocused, pushMessage } from '../../stores/app.store';
 	import { info } from 'tauri-plugin-log-api';
 	import { emit } from '@tauri-apps/api/event';
 	import IconMessage from 'virtual:icons/tabler/message';
 	import ButtonScrollBottom from './Buttons/ButtonScrollBottom.svelte';
 	import IconX from 'virtual:icons/tabler/x';
+	import IconCode from 'virtual:icons/tabler/code';
+	import { search, RetrievalService } from '../services/retrieval.service';
 
 	export let conversationId = 0;
 
@@ -32,6 +35,7 @@
 	let abortSignal: AbortSignal;
   let previousConversationId: number;
 	let mainContainer: HTMLElement | null;
+	let output: any;
 
 	onMount(async () => {
 		const res = await ollamaService.getModels();
@@ -72,7 +76,7 @@
     if (modelInvalid || promptEmpty) {
       pushMessage({
         title: 'hi!',
-        message: modelInvalid ? 'Select a model first' : 'Promp cannot be empty',
+        message: modelInvalid ? 'Select a model first' : 'Prompt cannot be empty',
         type: 'warn'
       });
       return;
@@ -87,25 +91,36 @@
     try {
       if (!conversationId) {
         conversationId = await db.addConversation({
+					...settings.options,
           title: 'New conversation',
           model,
-          started: new Date().toISOString()
+          started: new Date().toISOString(),
         });
       }
-
-      let conversation = await db.getConversation(conversationId);
-      context = JSON.parse(conversation.context);
 
       await addMessage(Number(conversationId), 'human', prompt);
 			setTimeout(() => {
 				scrollToBottom(500);
 			}, 10);
 
-      const res = await ollamaService.sendPrompt(
-        { prompt, model, context },
-        { signal: abortSignal }
-      );
-      if (!res) return;
+			let conversation = await db.getConversation(conversationId);
+			const messages = conversation?.messages.map((m: Message) => ({
+				role: m.senderType === 'ai' ? 'assistant' : 'user',
+				content: m.text
+			}));
+
+			const options: Record<string, any> = {
+				...settings.options,
+			};
+			Object.keys(settings.options).forEach(k => {
+				const cValue = conversation[k];
+				if (
+					cValue !== 'undefined' &&
+					cValue !== undefined &&
+					cValue !== null) {
+						options[k] = cValue
+					}
+			});
 
       prompt = '';
 			waitingForInitialResponse = false;
@@ -120,15 +135,29 @@
 					setTimeout(scrollToBottom);
 				}
       };
-      const { text: reply, context: newContext } = await parseResponseStream(res, updater);
-      context = newContext;
+						
+			// Enhanced chat
+			/*
+			const cnvHandler = new ConversationHandler({model, params: options, updater});
+			const reply = await cnvHandler.handlePrompt(messages);
+			*/
 
+      const res = await ollamaService.sendPrompt(
+        { model, messages, options },
+        { signal: abortSignal }
+      );
+      if (!res) return;
+
+      const { text: reply, context: newContext } = await parseChatResponseStream(res, updater);
+      context = newContext;
+			
+			console.log('Chat.sendPrompt conversation.title', conversation.title, JSON.stringify(conversation, null, 2));
       if (!conversation?.title || conversation.title === 'New conversation') {
         generateTitle(tempPrompt, reply);
       }
 
       await addMessage(Number(conversationId), 'ai', reply);
-      await db.updateConversationContext(conversationId, newContext);
+      //await db.updateConversationContext(conversationId, newContext);
 
       responding = '';
       waitingForResponse = false;
@@ -140,7 +169,12 @@
 
 	async function handleKeyPress(e: KeyboardEvent) {
 		if ((e.ctrlKey || e.metaKey) && e.code === 'Enter') {
-      sendPrompt();
+			if (prompt.startsWith('```') && prompt.endsWith('```')) {
+				runCode(prompt)
+			}
+			else {
+      	sendPrompt();
+			}
 		}
 	}
 
@@ -152,12 +186,16 @@
     ${exchange}`;
 		let text = '';
 		const res = await ollamaService.sendPrompt({
-			prompt,
+			messages: [{
+				role: 'user',
+				content: prompt
+			}],
 			model,
-			options: { top_k: 10, top_p: 0.20 }
+			options: { top_k: 10, top_p: 0.20}
 		});
 		if (res) {
-			({ text } = await parseResponseStream(res));
+			const parsed = await parseChatResponseStream(res);
+			({ text } = parsed);
 			if (text) {
 				await db.updateConversationTitle(conversationId, text);
 			}
@@ -188,6 +226,19 @@
 		}
 		info(`Message input focused: ${focused}`);
 	}
+
+	async function runCode(text: string) {
+		try {
+			const result = await runJsCodeInIframe({
+				code: text.replace(/(```)/g, '')
+			});
+			console.log({result, output})
+		}
+		catch(err: any) {
+			output = err.message;
+		}
+	}
+
 </script>
 
 <div class="block relative mx-auto max-w-3xl p-4 pt-0 pb-20">
@@ -218,10 +269,14 @@
 </div>
 
 <div class="fixed left-0 bottom-0 w-full z-30">
-	<div class="flex w-2/3 m-4 mx-auto max-w-3xl max-h-16 dark:bg-slate-900 rounded-md border border-slate-500">
+	<button on:click={async () => await search({term: 'ai latest news'})}>search</button>
+	{#if output}
+	{output}
+	{/if}
+	<div class="flex w-2/3 m-4 mx-auto max-w-3xl min-h-16 dark:bg-slate-900 rounded-md border border-slate-500">
 		<textarea
 			id="message-input"
-			class="textarea resize-none rounded-none rounded-s-md border-none overflow-hidden w-full bg-transparent dark:bg-slate-900 px-4 py-2 max-h-48"
+			class="textarea min-h-16 rounded-none rounded-s-md border-none overflow-hidden w-full bg-transparent dark:bg-slate-900 px-4 py-2 max-h-48"
 			placeholder="Type something..."
 			bind:value={prompt}
 			on:keydown={handleKeyPress}
@@ -234,6 +289,10 @@
 				<button class="btn" on:click={abort} title="Cancel">
 					<IconX />
 				</button>
+				{:else if prompt.startsWith('```') && prompt.endsWith('```')}
+				<button class="btn" on:click={() => runCode(prompt)} title="Run">
+					<IconCode />
+				</button>	
 				{:else}
 				<button class="btn" on:click={sendPrompt} title="Send">
 					<IconMessage />

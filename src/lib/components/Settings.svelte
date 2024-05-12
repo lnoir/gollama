@@ -16,6 +16,7 @@
 			num_ctx: 4096
 		},
 		template: '',
+		system: '',
 		stream: true
 	};
 
@@ -120,7 +121,7 @@
 			<span class="block text-md font-medium text-gray-300">Options</span>
 
 			<div class="mt-1">
-				<label for="options.top_k" class="block text-sm">Top K</label>
+				<label for="options.top_k" class="block text-sm" title="Reduces the probability of generating nonsense. A higher value (e.g. 100) will give more diverse answers, while a lower value (e.g. 10) will be more conservative.">Top K</label>
 				<div class="flex justify-between">
 					<div class="flex flex-col justify-center">
 						<RangeSlider
@@ -144,7 +145,7 @@
 			</div>
 
 			<div class="mt-4">
-				<label for="options.top_p" class="block text-sm">Top P</label>
+				<label for="options.top_p" class="block text-sm" title="Works together with top-k. A higher value (e.g., 0.95) will lead to more diverse text, while a lower value (e.g., 0.5) will generate more focused and conservative text.">Top P</label>
 				<div class="flex justify-between">
 					<div class="flex flex-col justify-center">
 						<RangeSlider
@@ -169,7 +170,7 @@
 			</div>
 
 			<div class="mt-4">
-				<label for="options.seed" class="block text-sm">Seed</label>
+				<label for="options.seed" class="block text-sm" title="Sets the random number seed to use for generation. Setting this to a specific number will make the model generate the same text for the same prompt.">Seed</label>
 				<input
 					type="number"
 					id="options.seed"
@@ -179,14 +180,14 @@
 			</div>
 
 			<div class="mt-4 mb-8">
-				<label for="options.num_ctx" class="block text-sm">Num Ctx</label>
+				<label for="options.num_ctx" class="block text-sm" title="Sets the size of the context window used to generate the next token.">Num Ctx</label>
 				<div class="flex justify-between">
 					<div class="flex flex-col justify-center">
 						<RangeSlider
 							name="range-slider"
 							class="dark:accent-cyan-500"
 							min={1024}
-							max={8192}
+							max={128000}
 							step={1024}
 							accent="dark:accent-cyan-600"
 							data-name="options.num_ctx"
