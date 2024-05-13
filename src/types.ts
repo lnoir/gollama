@@ -98,6 +98,11 @@ export type Conversation = {
 	messages: DbMessage[];
 };
 
+export type UIConvo = DbConversation & {
+	edit?: boolean;
+	showMenu?: Boolean;
+}
+
 export type PromptSettings = {
 	defaultModel?: string;
 	stream?: boolean;

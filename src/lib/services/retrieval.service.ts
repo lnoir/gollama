@@ -36,6 +36,15 @@ export async function search({ term }: { term: string}): Promise<any> {
   return {links, raw};
 }
 
+function toolRequiredForResponse(messages: PromptParamMessage[]): any {
+  const messageIndex = messages.findLastIndex((m: PromptParamMessage) => m.role === 'user');
+  if (messageIndex < 0) throw new Error('No user message found');
+  const content = messages[messageIndex].content;
+  const matches = content.trim().match(/^\/([a-z]+)/i);
+  //matches.
+  return
+}
+
 const tools = [
   {
     name: 'websearch',
@@ -45,29 +54,6 @@ const tools = [
 ];
 const toolsIndex: Record<string, number> = {};
 tools.forEach((t, i) => toolsIndex[t.name] = i);
-
-
-const ToolBotSystemPrompt = `
-Evaluate the user-provided message and determine if you can answer the question directly.
-If you have sufficient knowledge to provide an accurate response, return an unformatted, plain JSON object with a single property called  'tool' that contains an empty string ("").
-If you required additional information or data to provide an accurate response, see if one of the tools listed under 'Currently available tools:' might help to provide an accurate response.
-
-Return an unformatted, plain JSON object containing a single property, 'tool' that is populated with the name of the suitable tool, or an empty string if there's no suitable tool.
-
-Bad output example — there is no suitable tool: {"tool": "No suitable tool found"}
-Bad output example — there is no suitable tool: "No tool was found that can help answer your question"
-Bad output example — the 'search' tool is suitable: "You can use the \"search\'" tool"
-Bad output example — the 'search' tool is suitable: {"tool": "The \"search\'" tool would help in responding to this message"}
-Good output example — if there is no suitable tool: {"tool": ""}
-Good output example — if 'search' tool is a good fit: {"tool": "search"}
-Good output example — if 'random' tool is a good fit: {"tool": "random"}
-
-Currently available tools:
-${tools.map(t => `- ${t.name}: ${t.description} (use when: ${t.useWhen.join('; ')})`).join('\n')}
-
-No other tools are available. If none of the available tools are suitable, the 'tool' property should contain an empty string.
-ONLY ever return the JSON object; include no other output or commentary.
-`;
 
 interface Agent {
   handlePrompt(prompt: string): Promise<string>;
@@ -105,7 +91,7 @@ export class RetrievalService {
 
       console.log(`:::::::::::: @attempt ${attempts + 1}:`, content);
       // Evaluate prompt to determine if tool is required
-      const toolRequired = await this.toolRequiredForResponse(messages);
+      const toolRequired = toolRequiredForResponse(messages);
       console.log(`@attempt ${attempts + 1}:`, {toolRequired});
       if (toolRequired) {
         // Select a tool and invoke it
@@ -221,39 +207,6 @@ export class RetrievalService {
       console.error('@evaluateRetrievedData err:', err);
       return {error: err.message};
     } 
-  }
-
-  private async toolRequiredForResponse(messages: PromptParamMessage[]): Promise<string> {
-    // NLP- based evaluation of the prompt (e.g., sentiment analysis)
-    // Return true if a tool is required, false otherwise
-    const result =  await ollamaService.sendPrompt({
-      model: this.model,
-      format: 'json',
-      messages: [
-        {
-          role: 'system',
-          content: ToolBotSystemPrompt
-        },
-        ...messages.slice(-1),
-        {
-          role: 'user',
-          content: 'For any query regarding current or future events, a tool is always required. Only return the JSON. Include no other text or commentary.'
-        }
-      ],
-      options: {
-        temperature: 0.2
-      }
-    });
-    
-    try {
-      const json = await this.getResultText(result);
-      console.log('@SUCCESS', json);
-      return JSON.parse(json)?.tool;
-    }
-    catch(err: any) {
-      console.log('@FAILED', err)
-      return '';
-    }
   }
 
   private async invokeTool(messages: PromptParamMessage[], toolRequired: string): Promise<AgentResponse> {
