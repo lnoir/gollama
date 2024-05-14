@@ -2,7 +2,7 @@ export type AppModalType = 'component' | 'confirm' | 'prompt' | 'alert';
 export type AppLevelType = 'info' | 'warn' | 'danger';
 
 export type AppModalOptions = {
-	title: string;
+	title?: string;
 	component?: string;
 	message?: string;
 	level?: AppLevelType;

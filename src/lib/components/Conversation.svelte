@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { afterUpdate, onMount } from 'svelte';
 	import {
 		conversationsLastUpdated,
 		currentConversationId,
@@ -28,6 +28,12 @@
 		});
 	});
 
+	afterUpdate(() => {
+		if (conversationId === 0) {
+			messages = [];
+		}
+	})
+
 	afterNavigate(async ({ to }) => {
 		const incomingId = Number(to?.params?.conversationId || 0);
 		if (incomingId !== conversationId) {
@@ -37,7 +43,10 @@
 	});
 
 	async function switchConversation(incomingId: number) {
-		if (incomingId === 0) return;
+		if (incomingId === 0) {
+			messages = [];
+			return;
+		}
 		const convo = (await db.getConversation(incomingId)) as HydratedConversation;
 		messages = convo?.messages || [];
 		currentConversationMessageCount.update(() => messages.length);

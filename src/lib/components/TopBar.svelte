@@ -31,7 +31,7 @@
 	function newConversation() {
 		currentConversationId.update(() => 0);
 		currentConversationMessageCount.update(() => 0);
-		goto('/', { replaceState: true });
+		goto('/');
 	}
 </script>
 
@@ -41,18 +41,18 @@
 			<button
 				class="inline-block relative py-2 px-3 btn variant-outline rounded-md top-0"
 				on:click={toggleMenu}>
-				<IconMenu size={20} />
+				<IconMenu class="h-5 w-5" />
 			</button>
 			<button
 				class="btn flex justify-between variant-ghost-primary rounded-xl py-2 px-4 mx-2 !cursor-pointer"
 				on:click={newConversation}>
-				<IconMessage size={20} /><span>New Conversation</span>
+				<IconMessage class="h-5 w-5" /><span>New Conversation</span>
 			</button>
 		</svelte:fragment>
 		<svelte:fragment slot="trail">
 			<button class="btn variant-outline px-3 rounded-md ml-2 top-0"
 				on:click={toggleSettings}>
-				<IconSettings size={20} />
+				<IconSettings class="h-5 w-5" />
 			</button>
 		</svelte:fragment>
 		<svelte:fragment slot="headline" />

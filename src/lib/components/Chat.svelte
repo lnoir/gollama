@@ -19,7 +19,9 @@
 	import ButtonScrollBottom from './Buttons/ButtonScrollBottom.svelte';
 	import IconX from 'virtual:icons/tabler/x';
 	import IconCode from 'virtual:icons/tabler/code';
+	import IconRefresh from 'virtual:icons/tabler/refresh';
 	import { search, RetrievalService } from '../services/retrieval.service';
+	import { onNavigate } from '$app/navigation';
 
 	export let conversationId = 0;
 
@@ -38,8 +40,7 @@
 	let output: any;
 
 	onMount(async () => {
-		const res = await ollamaService.getModels();
-		models = res || [];
+		await getModels();
 		const dbReadyUnsub = dbReady.subscribe(async ready => {
 			settings = (await db.getSettingsMap()) as SettingsMap;
 			model = settings.default_model || settings.default_model || '';
@@ -55,6 +56,21 @@
 		});
 		mainContainer = document.getElementById('main');
 	});
+
+	onNavigate(async ({from, to}) => {
+		console.log({from, to});
+		if (to?.url.pathname === '/') {
+			conversationId = 0;
+		}
+		else {
+			settings = (await db.getSettingsMap()) as SettingsMap;
+		}
+	});
+
+	async function getModels() {
+		const res = await ollamaService.getModels();
+		models = res || [];
+	}
 
 	function scrollToBottom(pad = 150) {
 		mainContainer?.scrollTo({
@@ -91,7 +107,7 @@
     try {
       if (!conversationId) {
         conversationId = await db.addConversation({
-					...settings.options,
+					...(settings?.options || {}),
           title: 'New conversation',
           model,
           started: new Date().toISOString(),
@@ -242,17 +258,21 @@
 </script>
 
 <div class="block relative mx-auto max-w-3xl p-4 pt-0 pb-20">
-	<select
-		class="select block max-w-lg mx-auto my-2 dark:bg-slate-800 text-slate-300"
-		placeholder="Select a model"
-		bind:value={model}
-		disabled={$currentConversationMessageCount > 0}>
-		<option class="text-slate-300">-- Select model -- </option>
-		{#each models as model}
-			<option class="text-slate-300" value={model.name}>{model.name}</option>
-		{/each}
-	</select>
-
+	<div class="block mx-auto max-w-lg">
+		<button class="btn relative top-1 p-2" on:click={getModels} title="Refresh">
+			<IconRefresh />
+		</button>	
+		<select
+			class="select max-w-md mx-auto my-2 dark:bg-slate-800 text-slate-300"
+			placeholder="Select a model"
+			bind:value={model}
+			disabled={$currentConversationMessageCount > 0}>
+			<option class="text-slate-300">-- Select model -- </option>
+			{#each models as model}
+				<option class="text-slate-300" value={model.name}>{model.name}</option>
+			{/each}
+		</select>
+	</div>
 	<Conversation {conversationId} {responding} />
 
 	<div class="block invisible mx-auto mt-6" class:!visible={waitingForResponse || responding}>
@@ -269,7 +289,6 @@
 </div>
 
 <div class="fixed left-0 bottom-0 w-full z-30">
-	<button on:click={async () => await search({term: 'ai latest news'})}>search</button>
 	{#if output}
 	{output}
 	{/if}

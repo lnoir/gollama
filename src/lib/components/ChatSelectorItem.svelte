@@ -2,7 +2,7 @@
   import IconCheck from 'virtual:icons/tabler/check';
   import IconDotsVertical from 'virtual:icons/tabler/dots-vertical';
 	import { db } from '../services/db.service';
-	import type { DbConversation, UIConvo } from '../../types';
+	import type { UIConvo } from '../../types';
 	import { goto } from '$app/navigation';
 	import { conversationsLastUpdated } from '../../stores/conversation.store';
 	import { pushDialog, pushMessage } from '../../stores/app.store';
@@ -11,8 +11,6 @@
 
   export let active = false;
   export let conversation: UIConvo;
-
-  $: console.log('@edit?', conversation.edit);
 
   let tempTitle = '';
 
@@ -83,9 +81,9 @@
     <span class="block w-56 overflow-hidden text-ellipsis break-all">{conversation.title || `Chat ${conversation.id}`}</span>
   </a>
 		<div
-			class="menu-overlay transition-all duration-500 absolute z-10 right-0 w-10 opacity-0 group-hover:opacity-100 bg-transparent bg-gradient-to-l from-slate-900 rounded-md">
+			class="menu-overlay flex justify-end transition-all duration-500 absolute z-10 right-0 w-24 opacity-0 group-hover:opacity-100 bg-transparent bg-gradient-to-l from-slate-900 rounded-md">
 			<button
-				class="transition-all duration-500 btn-icon h-6 !bg-transparent hover:bg-slate-700 opacity-0 group-hover:opacity-100 ml-2"
+				class="transition-all duration-500 btn-icon h- !bg-transparent hover:bg-slate-700 opacity-0 group-hover:opacity-100 ml-2"
 				title={`Update`}
 				on:click={() => (conversation.showMenu = true)}>
 				<IconDotsVertical class="transition-all stroke-slate-800 hover:stroke-slate-200" />
