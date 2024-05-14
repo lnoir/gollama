@@ -49,8 +49,8 @@
 	}
 </script>
 
-<div class="fixed w-full h-fit top-0 left-0 z-40">
-	<AppBar>
+<div class="fixed w-full h-fit top-0 left-0 z-40 bg-red">
+	<AppBar background="bg-transparent">
 		<svelte:fragment slot="lead">
 			<button
 				class="inline-block relative py-2 px-3 btn variant-outline rounded-md top-0"
@@ -62,9 +62,9 @@
 				on:click={newConversation}>
 				<IconMessage class="h-5 w-5" /><span>New Conversation</span>
 			</button>
-			<ModelSelect {models} {model} on:refresh={getModels} />
 		</svelte:fragment>
 		<svelte:fragment slot="trail">
+			<ModelSelect {models} {model} on:refresh={getModels} />
 			<div class="flex justify-between">
 				<button class="btn variant-outline px-3 rounded-md ml-2 top-0"
 					on:click={toggleSettings}>

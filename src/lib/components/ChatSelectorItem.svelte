@@ -78,7 +78,7 @@
     class="btn text-left text-sm p-1 rounded-none"
     title={conversation.title || `Chat ${conversation.id}`}
     on:click|preventDefault={() => loadConversation(conversation.id)}>
-    <span class="block w-56 overflow-hidden text-ellipsis break-all">{conversation.title || `Chat ${conversation.id}`}</span>
+    <span class="block w-56 overflow-hidden text-ellipsis break-all text-gray-400 group-hover:text-gray-200">{conversation.title || `Chat ${conversation.id}`}</span>
   </a>
 		<div
 			class="menu-overlay flex justify-end transition-all duration-500 absolute z-10 right-0 w-24 opacity-0 group-hover:opacity-100 bg-transparent bg-gradient-to-l from-slate-900 rounded-md">

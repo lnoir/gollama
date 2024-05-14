@@ -61,7 +61,7 @@
 {#if show}
 	<div
 		id="chat-selector"
-		class="block fixed left-0 z-40 h-full bg-gray-900 pb-28 overflow-y-scroll"
+		class="block fixed left-0 z-40 h-full bg-gray-900 pb-28 overflow-y-scroll border-e border-r-gray-800"
 		transition:fly={{ duration: 400, x: -300 }}>
 
 		<div class="block z-30 sticky top-0 bg-slate-900 p-3">

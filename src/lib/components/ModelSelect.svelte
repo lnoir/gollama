@@ -27,8 +27,11 @@
 </script>
 
 <div class="flex mx-auto max-w-lg">
+  <button class="btn relative py-2 px-3" on:click={() => dispatch('refresh')} title="Refresh">
+    <IconRefresh />
+  </button>	
 	<select
-		class="select m-0 max-w-md mx-auto ml-4 my-2 py-1.5 text-center cursor-pointer border-none dark:bg-slate-800 text-slate-300"
+		class="select m-0 max-w-md mx-auto my-2 py-1.5 text-center cursor-pointer border-none dark:bg-slate-800 text-slate-300"
 		placeholder="Select a model"
     size="1"
 		bind:value={model}
@@ -38,8 +41,4 @@
 			<option class="text-slate-300" value={m.name}>{m.name}</option>
 		{/each}
 	</select>
-
-  <button class="btn relative p-2" on:click={() => dispatch('refresh')} title="Refresh">
-    <IconRefresh />
-  </button>	
 </div>

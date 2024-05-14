@@ -13,7 +13,6 @@
 	import { parseChatResponseStream, runJsCodeInIframe } from '$lib/helpers';
 	import { availableModels, dbReady, menuOpen, messageInputFocused, pushMessage, selectedModel, settingsOpen } from '../../stores/app.store';
 	import { info } from 'tauri-plugin-log-api';
-	import { emit } from '@tauri-apps/api/event';
 	import IconMessage from 'virtual:icons/tabler/message';
 	import ButtonScrollBottom from './Buttons/ButtonScrollBottom.svelte';
 	import IconX from 'virtual:icons/tabler/x';
@@ -37,6 +36,12 @@
   let previousConversationId: number;
 	let mainContainer: HTMLElement | null;
 	let output: any;
+	let isCode = false;
+
+	$: isCode = (
+		prompt.trim().startsWith('@code') ||
+		(prompt.startsWith('```') && prompt.endsWith('```'))
+	);
 
 	onMount(async () => {
 		const dbReadyUnsub = dbReady.subscribe(async ready => {
@@ -180,8 +185,8 @@
 
 	async function handleKeyPress(e: KeyboardEvent) {
 		if ((e.ctrlKey || e.metaKey) && e.code === 'Enter') {
-			if (prompt.startsWith('```') && prompt.endsWith('```')) {
-				runCode(prompt)
+			if (isCode) {
+				runCode(prompt);
 			}
 			else {
       	sendPrompt();
@@ -240,16 +245,17 @@
 	}
 
 	async function runCode(text: string) {
+		const code = text.trim().replace('@code', '').replace(/(```)/g, '');
+		console.log({code});
 		try {
-			const result = await runJsCodeInIframe({
-				code: text.replace(/(```)/g, '')
+			output = await runJsCodeInIframe({
+				code,
 			});
 		}
 		catch(err: any) {
 			output = err.message;
 		}
 	}
-
 </script>
 
 <div class="block relative mx-auto max-w-3xl p-4 pt-0 pb-20">
@@ -271,13 +277,17 @@
 
 <div class="fixed left-0 bottom-0 w-full z-30">
 	{#if output}
-	{output}
+	<code class="block mx-auto w-56 whitespace-pre">
+		{output}
+	</code>
 	{/if}
 	<div class="flex w-2/3 m-4 mx-auto max-w-3xl min-h-16 dark:bg-slate-900 rounded-md border border-slate-500">
 		<textarea
 			id="message-input"
 			class="textarea min-h-16 rounded-none rounded-s-md border-none overflow-hidden w-full bg-transparent dark:bg-slate-900 px-4 py-2 max-h-48"
 			placeholder="Type something..."
+			autocapitalize="off"
+			autocomplete="off"
 			bind:value={prompt}
 			on:keydown={handleKeyPress}
 			on:focus={() => updateFocused(true)}
@@ -289,7 +299,7 @@
 				<button class="btn" on:click={abort} title="Cancel">
 					<IconX />
 				</button>
-				{:else if prompt.startsWith('```') && prompt.endsWith('```')}
+				{:else if isCode}
 				<button class="btn" on:click={() => runCode(prompt)} title="Run">
 					<IconCode />
 				</button>	
