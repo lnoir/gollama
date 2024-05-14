@@ -1,31 +1,45 @@
 <script lang="ts">
-	import { createEventDispatcher, onMount } from 'svelte';
+	import { onMount } from 'svelte';
 	import {
 		currentConversationId,
 		currentConversationMessageCount
 	} from '../../stores/conversation.store';
+	import { availableModels, menuOpen, selectedModel, settings, settingsOpen } from '../../stores/app.store';
 	import { AppBar } from '@skeletonlabs/skeleton';
 	import { goto } from '$app/navigation';
 
 	import IconMenu from 'virtual:icons/tabler/menu';
 	import IconMessage from 'virtual:icons/tabler/message';
 	import IconSettings from 'virtual:icons/tabler/settings';
+	import ModelSelect from './ModelSelect.svelte';
+	import type { Model, SettingsMap } from '../../types';
+	import { db } from '../services/db.service';
+	import { ollamaService } from '../services/ollama.service';
 
-	const dispatch = createEventDispatcher();
+	let models: Model[] = [];
+	let model = '';
 
-	onMount(() => {});
-
-	let showMenu = true;
-	let showSettings = false;
+	onMount(async () => {
+		await getModels();
+		let savedSettings = (await db.getSettingsMap()) as SettingsMap;
+		settings.set(savedSettings);
+		selectedModel.update(() => {
+			model = savedSettings.default_model || '';
+			return model;
+		});
+	});
+	
+	async function getModels() {
+		models = await ollamaService.getModels();
+		availableModels.set(models);
+	}
 
 	function toggleMenu() {
-		showMenu = !showMenu;
-		dispatch('toggleMenu', showMenu);
+		menuOpen.update(state => !state);
 	}
 
 	function toggleSettings() {
-		showSettings = !showSettings;
-		dispatch('toggleSettings', showSettings);
+		settingsOpen.update(state => !state);
 	}
 
 	function newConversation() {
@@ -44,16 +58,19 @@
 				<IconMenu class="h-5 w-5" />
 			</button>
 			<button
-				class="btn flex justify-between variant-ghost-primary rounded-xl py-2 px-4 mx-2 !cursor-pointer"
+				class="btn flex justify-between variant-ghost-primary rounded-xl py-1.5 px-4 mx-2 !cursor-pointer"
 				on:click={newConversation}>
 				<IconMessage class="h-5 w-5" /><span>New Conversation</span>
 			</button>
+			<ModelSelect {models} {model} on:refresh={getModels} />
 		</svelte:fragment>
 		<svelte:fragment slot="trail">
-			<button class="btn variant-outline px-3 rounded-md ml-2 top-0"
-				on:click={toggleSettings}>
-				<IconSettings class="h-5 w-5" />
-			</button>
+			<div class="flex justify-between">
+				<button class="btn variant-outline px-3 rounded-md ml-2 top-0"
+					on:click={toggleSettings}>
+					<IconSettings class="h-5 w-5" />
+				</button>
+			</div>
 		</svelte:fragment>
 		<svelte:fragment slot="headline" />
 	</AppBar>

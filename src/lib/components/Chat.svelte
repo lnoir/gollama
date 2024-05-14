@@ -1,10 +1,9 @@
 <script lang="ts">
 	import { ollamaService } from '$services/ollama.service';
-	import { onMount } from 'svelte';
+	import { onMount, setContext } from 'svelte';
 	import type { Model, SettingsMap } from '../../types';
 	import {
 	currentConversationId,
-		currentConversationMessageCount,
 		type Message,
 		type SenderType
 	} from '../../stores/conversation.store';
@@ -12,22 +11,22 @@
 	import { ProgressRadial } from '@skeletonlabs/skeleton';
 	import Conversation from './Conversation.svelte';
 	import { parseChatResponseStream, runJsCodeInIframe } from '$lib/helpers';
-	import { dbReady, messageInputFocused, pushMessage } from '../../stores/app.store';
+	import { availableModels, dbReady, menuOpen, messageInputFocused, pushMessage, selectedModel, settingsOpen } from '../../stores/app.store';
 	import { info } from 'tauri-plugin-log-api';
 	import { emit } from '@tauri-apps/api/event';
 	import IconMessage from 'virtual:icons/tabler/message';
 	import ButtonScrollBottom from './Buttons/ButtonScrollBottom.svelte';
 	import IconX from 'virtual:icons/tabler/x';
 	import IconCode from 'virtual:icons/tabler/code';
-	import IconRefresh from 'virtual:icons/tabler/refresh';
 	import { search, RetrievalService } from '../services/retrieval.service';
 	import { onNavigate } from '$app/navigation';
+	import { get } from 'svelte/store';
 
 	export let conversationId = 0;
 
 	let prompt = '';
-	let models: Model[] = [];
-	let model = '';
+	let models: Model[] = get(availableModels);
+	let model = get(selectedModel);;
 	let waitingForInitialResponse = false;
 	let waitingForResponse = false;
 	let responding = '';
@@ -40,10 +39,8 @@
 	let output: any;
 
 	onMount(async () => {
-		await getModels();
 		const dbReadyUnsub = dbReady.subscribe(async ready => {
 			settings = (await db.getSettingsMap()) as SettingsMap;
-			model = settings.default_model || settings.default_model || '';
 			dbReadyUnsub();
 		});
 		currentConversationId.subscribe(async id => {
@@ -52,9 +49,11 @@
 			if (!id) return;
 			const conversation = await db.getConversation(id);
 			if (!conversation) return;
-			model = conversation.model;
 		});
 		mainContainer = document.getElementById('main');
+		availableModels.subscribe(available => {
+			models = available;
+		});
 	});
 
 	onNavigate(async ({from, to}) => {
@@ -66,11 +65,6 @@
 			settings = (await db.getSettingsMap()) as SettingsMap;
 		}
 	});
-
-	async function getModels() {
-		const res = await ollamaService.getModels();
-		models = res || [];
-	}
 
 	function scrollToBottom(pad = 150) {
 		mainContainer?.scrollTo({
@@ -87,6 +81,7 @@
 	}
 
   async function sendPrompt() {
+		model = get(selectedModel);
     const modelInvalid = !isValidModelSelection(model);
     const promptEmpty = !prompt?.trim();
     if (modelInvalid || promptEmpty) {
@@ -238,7 +233,8 @@
 	async function updateFocused(focused: boolean) {
 		messageInputFocused.update(() => focused);
 		if (focused) {
-			emit('close_menu');
+			menuOpen.update(_ => false);
+			settingsOpen.update(_ => false);
 		}
 		info(`Message input focused: ${focused}`);
 	}
@@ -248,7 +244,6 @@
 			const result = await runJsCodeInIframe({
 				code: text.replace(/(```)/g, '')
 			});
-			console.log({result, output})
 		}
 		catch(err: any) {
 			output = err.message;
@@ -258,21 +253,7 @@
 </script>
 
 <div class="block relative mx-auto max-w-3xl p-4 pt-0 pb-20">
-	<div class="block mx-auto max-w-lg">
-		<button class="btn relative top-1 p-2" on:click={getModels} title="Refresh">
-			<IconRefresh />
-		</button>	
-		<select
-			class="select max-w-md mx-auto my-2 dark:bg-slate-800 text-slate-300"
-			placeholder="Select a model"
-			bind:value={model}
-			disabled={$currentConversationMessageCount > 0}>
-			<option class="text-slate-300">-- Select model -- </option>
-			{#each models as model}
-				<option class="text-slate-300" value={model.name}>{model.name}</option>
-			{/each}
-		</select>
-	</div>
+	
 	<Conversation {conversationId} {responding} />
 
 	<div class="block invisible mx-auto mt-6" class:!visible={waitingForResponse || responding}>
@@ -301,7 +282,7 @@
 			on:keydown={handleKeyPress}
 			on:focus={() => updateFocused(true)}
 			on:blur={() => updateFocused(false)}
-			disabled={!model || waitingForResponse} />
+			disabled={!$selectedModel || waitingForResponse} />
 			<div id="input-button-panel"
 				class="flex p-2 bg-">
 				{#if waitingForResponse || responding}

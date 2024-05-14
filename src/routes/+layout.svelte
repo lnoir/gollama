@@ -8,7 +8,7 @@
 	import ChatSelector from '$components/ChatSelector.svelte';
 	import TopBar from '$components/TopBar.svelte';
 	import { onMount } from 'svelte';
-	import { dialogQueue, messageQueue } from '../stores/app.store';
+	import { dialogQueue, menuOpen, messageQueue, settingsOpen } from '../stores/app.store';
 	import { showModal, showToast } from '$lib/helpers';
 	import type { AppDialogOptions, AppMessageOptions } from '../types';
 	import SettingsPanel from '$components/SettingsPanel.svelte';
@@ -42,6 +42,7 @@
       }
 			return dialogs;
 		});
+		menuOpen.subscribe(console.log);
 	});
 </script>
 
@@ -54,13 +55,10 @@
 	</div>
 </div>
 
-<TopBar
-	on:toggleMenu={(e) => (showMenu = e.detail)}
-	on:toggleSettings={(e) => (showSettings = e.detail)}
-/>
+<TopBar />
 
 <section id="main" class="p-0 pt-16 overflow-auto h-screen overscroll-none">
-	<ChatSelector show={showMenu} />
-	<SettingsPanel show={showSettings} />
+	<ChatSelector show={$menuOpen} />
+	<SettingsPanel show={$settingsOpen} />
 	<slot />
 </section>
