@@ -148,81 +148,80 @@ export function updateMenuOverlap() {
 	menuOverlapping.update(() => overlapping);
 }
 
-export function runJsCodeInIframe0(jsCode: string): Promise<string | Error | null> {
-	const iframe = document.createElement('iframe');
-  iframe.name = `js-execution-frame-${Date.now()}`;
-  iframe.srcdoc = `
-    <html>
-      <head></head>
-      <body>
-        <script>
-          try {
-            ${jsCode};
-            window.parent.postMessage({ type: 'OUTPUT', output: console.log().join('\n') }, '*');
-          } catch (error) {
-            window.parent.postMessage({ type: 'ERROR', error }, '*');
-          }
-        </script>
-      </body>
-    </html>
-  `;
-  document.body.appendChild(iframe);
-
+export function runJsCodeInIframe({ code }: { code: string }) {
   return new Promise((resolve, reject) => {
-    // Post a message to the parent window when the script finishes executing
-    iframe.contentWindow?.postMessage({ type: 'FINISHED' }, '*');
+    // Array to hold the console messages and result
+    const iframeConsoleMessages: string[] = [];
+    let executionResult: any = null;
+    let executionError: any = null;
 
-    // Listen for the FINISHED and OUTPUT messages and resolve or reject accordingly
-    window.addEventListener('message', (event) => {
-      if (event.data.type === 'FINISHED') {
-        iframe.remove(); // Remove the iframe once its work is done
-        resolve(null);
-      } else if (event.data.type === 'OUTPUT') {
-        resolve(event.data.output);
-      } else if (event.data.type === 'ERROR') {
-        reject(new Error(event.data.error));
+    // Setup iframe
+    const iframe = document.createElement('iframe');
+    iframe.name = `js-execution-frame-${Date.now()}`;
+    iframe.style.display = 'none'; // Hide it
+    iframe.srcdoc = `
+      <html>
+        <head></head>
+        <body>
+          <script>
+            (function() {
+              const originalConsoleLog = console.log;
+              console.log = (...args) => {
+                // Send the log messages to the parent window
+                window.parent.postMessage({ type: 'iframe-console-log', messages: args }, '*');
+                // Call the original console.log
+                originalConsoleLog(...args);
+              };
+
+              // Listen for code execution requests from the parent window
+              window.addEventListener('message', (event) => {
+                if (event.data.type === 'execute-code') {
+                  try {
+                    const result = eval(event.data.code);
+                    window.parent.postMessage({ type: 'execution-result', result: result }, '*');
+                  } catch (error) {
+                    window.parent.postMessage({ type: 'execution-error', error: error.message }, '*');
+                  }
+                }
+              });
+
+              // Notify the parent window that the iframe is ready
+              window.parent.postMessage({ type: 'iframe-ready' }, '*');
+            })();
+          </script>
+        </body>
+      </html>
+    `;
+    document.body.appendChild(iframe);
+
+    // Event listener to capture messages from the iframe
+    const messageHandler = (event: MessageEvent) => {
+      if (event.data.type === 'iframe-console-log') {
+        const messages = event.data.messages.map((msg: any) => (typeof msg === 'object' ? JSON.stringify(msg) : String(msg)));
+        iframeConsoleMessages.push(messages.join(' '));
+      } else if (event.data.type === 'execution-result') {
+        executionResult = event.data.result;
+        resolveAll();
+      } else if (event.data.type === 'execution-error') {
+        executionError = event.data.error;
+        resolveAll();
+      } else if (event.data.type === 'iframe-ready') {
+        iframe.contentWindow?.postMessage({ type: 'execute-code', code: code }, '*');
       }
-    });
+    };
+
+    const resolveAll = () => {
+      if (executionResult !== null || executionError !== null) {
+        window.removeEventListener('message', messageHandler);
+        if (executionError) {
+          reject({ error: executionError, logs: iframeConsoleMessages });
+        } else {
+          resolve({ result: executionResult, logs: iframeConsoleMessages });
+        }
+        document.body.removeChild(iframe);
+      }
+    };
+
+    window.addEventListener('message', messageHandler);
   });
-}
-
-export function runJsCodeInIframe(
-	{ code }:
-	{ code: string }
-) {
-	const iframe  = document.createElement('iframe'); 
-	iframe.name  = `js-execution-frame-${Date.now()}`; 
-	iframe.srcdoc  = `
-			<html>
-				<head></head>
-				<body>
-					<script>
-						try {
-							const callback = (${code});
-							window.parent.postMessage({ type: 'OUTPUT', output: callback }, '*');
-						} catch (error) {
-							window.parent.postMessage({ type: 'ERROR', error }, '*');
-						}
-					</script>
-				</body>
-			</html>
-	`;
-	document.body.appendChild(iframe);
-
-	return new Promise((resolve, reject) => {
-		// Post a message to the parent window when the script finishes executing
-		iframe.contentWindow?.postMessage({ type: 'FINISHED' }, '*');
-
-		// Listen for the FINISHED and OUTPUT messages and resolve or reject accordingly
-		window.addEventListener('message', (event) => {
-			if (event.data.type === 'FINISHED') {
-				iframe.remove(); // Remove the iframe once its work is done
-				resolve(null);
-			} else if (event.data.type === 'OUTPUT') {
-				resolve(event.data.output);
-			} else if (event.data.type === 'ERROR') {
-				reject(new Error(event.data.error));
-			}
-		});
-	});
 }

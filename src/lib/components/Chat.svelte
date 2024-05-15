@@ -20,6 +20,7 @@
 	import { search, RetrievalService } from '../services/retrieval.service';
 	import { onNavigate } from '$app/navigation';
 	import { get } from 'svelte/store';
+	import CodeExecutionResult from './CodeExecutionResult.svelte';
 
 	export let conversationId = 0;
 
@@ -245,12 +246,12 @@
 	}
 
 	async function runCode(text: string) {
-		const code = text.trim().replace('@code', '').replace(/(```)/g, '');
+		let code = text.trim().replace('@code', '').replace(/(```)/g, '');
 		console.log({code});
 		try {
-			output = await runJsCodeInIframe({
+			output = (await runJsCodeInIframe({
 				code,
-			});
+			}));
 		}
 		catch(err: any) {
 			output = err.message;
@@ -261,6 +262,8 @@
 <div class="block relative mx-auto max-w-3xl p-4 pt-0 pb-20">
 	
 	<Conversation {conversationId} {responding} />
+
+	<CodeExecutionResult {output} />
 
 	<div class="block invisible mx-auto mt-6" class:!visible={waitingForResponse || responding}>
 		{#if waitingForInitialResponse}
@@ -276,11 +279,6 @@
 </div>
 
 <div class="fixed left-0 bottom-0 w-full z-30">
-	{#if output}
-	<code class="block mx-auto w-56 whitespace-pre">
-		{output}
-	</code>
-	{/if}
 	<div class="flex w-2/3 m-4 mx-auto max-w-3xl min-h-16 dark:bg-slate-900 rounded-md border border-slate-500">
 		<textarea
 			id="message-input"
