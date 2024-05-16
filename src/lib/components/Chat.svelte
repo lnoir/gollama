@@ -10,7 +10,7 @@
 	import { db } from '$services/db.service';
 	import { ProgressRadial } from '@skeletonlabs/skeleton';
 	import Conversation from './Conversation.svelte';
-	import { parseChatResponseStream, runJsCodeInIframe } from '$lib/helpers';
+	import { parseChatResponseStream, runJsCodeInWorker } from '$lib/helpers';
 	import { availableModels, dbReady, menuOpen, messageInputFocused, pushMessage, selectedModel, settingsOpen } from '../../stores/app.store';
 	import { info } from 'tauri-plugin-log-api';
 	import IconMessage from 'virtual:icons/tabler/message';
@@ -270,9 +270,10 @@
 		let code = text.trim().replace('@code', '').replace(/(```)/g, '');
 		console.log({code});
 		try {
-			output = (await runJsCodeInIframe({
+			output = await runJsCodeInWorker({
 				code,
-			}));
+			});
+			console.log('@out', output);
 		}
 		catch(err: any) {
 			output = err.message;

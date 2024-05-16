@@ -147,80 +147,54 @@ export function updateMenuOverlap() {
 	menuOverlapping.update(() => overlapping);
 }
 
-export function runJsCodeInIframe({ code }: { code: string }) {
+export function runJsCodeInWorker({ code }: { code: string }) {
   return new Promise((resolve, reject) => {
-    // Array to hold the console messages and result
-    const iframeConsoleMessages: string[] = [];
+    const workerConsoleMessages: string[] = [];
     let executionResult: any = null;
     let executionError: any = null;
 
-    // Setup iframe
-    const iframe = document.createElement('iframe');
-    iframe.name = `js-execution-frame-${Date.now()}`;
-    iframe.style.display = 'none'; // Hide it
-    iframe.srcdoc = `
-      <html>
-        <head></head>
-        <body>
-          <script>
-            (function() {
-              const originalConsoleLog = console.log;
-              console.log = (...args) => {
-                // Send the log messages to the parent window
-                window.parent.postMessage({ type: 'iframe-console-log', messages: args }, '*');
-                // Call the original console.log
-                originalConsoleLog(...args);
-              };
+    // Create worker
+		const worker = new Worker(new URL('worker.js', import.meta.url));
+		worker.onmessageerror = (event) => {
+			console.warn('@onmessage', event);
+		};
 
-              // Listen for code execution requests from the parent window
-              window.addEventListener('message', (event) => {
-                if (event.data.type === 'execute-code') {
-                  try {
-                    const result = eval(event.data.code);
-                    window.parent.postMessage({ type: 'execution-result', result: result }, '*');
-                  } catch (error) {
-                    window.parent.postMessage({ type: 'execution-error', error: error.message }, '*');
-                  }
-                }
-              });
+    // Capture messages from the worker
+    worker.onmessage = (event) => {
+      const { type, result, error, logs } = event.data;
 
-              // Notify the parent window that the iframe is ready
-              window.parent.postMessage({ type: 'iframe-ready' }, '*');
-            })();
-          </script>
-        </body>
-      </html>
-    `;
-    document.body.appendChild(iframe);
-
-    // Event listener to capture messages from the iframe
-    const messageHandler = (event: MessageEvent) => {
-      if (event.data.type === 'iframe-console-log') {
-        const messages = event.data.messages.map((msg: any) => (typeof msg === 'object' ? JSON.stringify(msg) : String(msg)));
-        iframeConsoleMessages.push(messages.join(' '));
-      } else if (event.data.type === 'execution-result') {
-        executionResult = event.data.result;
-        resolveAll();
-      } else if (event.data.type === 'execution-error') {
-        executionError = event.data.error;
-        resolveAll();
-      } else if (event.data.type === 'iframe-ready') {
-        iframe.contentWindow?.postMessage({ type: 'execute-code', code: code }, '*');
+      if (logs) {
+        workerConsoleMessages.push(...logs);
       }
+
+      if (type === 'result') {
+        executionResult = result;
+        resolveAll();
+      } else if (type === 'error') {
+        executionError = error;
+        resolveAll();
+      }
+    };
+
+    worker.onerror = (error: ErrorEvent) => {
+			console.error('Error:', error);
+      executionError = error.message;
+      resolveAll();
     };
 
     const resolveAll = () => {
+      worker.terminate();
       if (executionResult !== null || executionError !== null) {
-        window.removeEventListener('message', messageHandler);
         if (executionError) {
-          reject({ error: executionError, logs: iframeConsoleMessages });
+          reject({ error: executionError, logs: workerConsoleMessages });
         } else {
-          resolve({ result: executionResult, logs: iframeConsoleMessages });
+					console.log({executionResult, workerConsoleMessages})
+          resolve({ result: executionResult, logs: workerConsoleMessages });
         }
-        document.body.removeChild(iframe);
       }
     };
 
-    window.addEventListener('message', messageHandler);
+    // Post the code to the worker
+    worker.postMessage({ code });
   });
 }
