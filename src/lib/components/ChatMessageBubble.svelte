@@ -10,6 +10,17 @@
 	export let text = '';
 	export let parse = true;
 
+	const classes: any = {
+		human: {
+			tab: 'bg-slate-950 bg-opacity-50',
+			body: 'bg-slate-950 bg-opacity-50 rounded-tl-none',
+		},
+		ai: {
+			tab: 'bg-zinc-900',
+			body: 'bg-zinc-900 bg-opacity-50 rounded-tr-none',
+		}
+	};
+
 	let root: HTMLElement;
 	let sanitizedText = '';
 
@@ -62,7 +73,8 @@
 				props: {
 					text: el.innerText,
 					title: 'Copy this block',
-					position: 'top'
+					position: 'top',
+					classes: 'absolute bottom-0 right-0'
 				}
 			});
 		});
@@ -71,20 +83,16 @@
 
 <div class="tab" bind:this={root}>
 	<div class="flex w-full font-bold" class:justify-end={senderType === 'ai'}>
-		<div
-			class="font-bold py-1 px-3 rounded-t-md"
-			class:bg-zinc-900={senderType === 'ai'}
-			class:bg-slate-900={senderType === 'human'}>
+		<div class="font-bold py-1 px-3 rounded-t-md {classes[senderType].tab}">
 			{senderType === 'ai' ? 'AI' : 'Me'}
 		</div>
 	</div>
 	<div
-		class="p-4 whitespace-pre-wrap rounded-md"
-		class:bg-zinc-900={senderType === 'ai'}
-		class:rounded-tr-none={senderType === 'ai'}
-		class:rounded-tl-none={senderType === 'human'}
-		class:bg-slate-900={senderType === 'human'}>
+		class="rounded-md {classes[senderType].body}">
 		<!-- prettier-ignore -->
-		{@html sanitizedText}
+		<div class="p-4 whitespace-pre-wrap">
+			{@html sanitizedText}
+		</div>
+		<slot name="footer" />
 	</div>
 </div>

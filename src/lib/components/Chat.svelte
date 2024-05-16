@@ -24,12 +24,13 @@
 
 	export let conversationId = 0;
 
+	type ResponseStatus = 'idle' | 'waitingForInitial' | 'responding';
+
 	let prompt = '';
 	let models: Model[] = get(availableModels);
 	let model = get(selectedModel);;
-	let waitingForInitialResponse = false;
-	let waitingForResponse = false;
 	let responding = '';
+	let responseStatus: ResponseStatus = 'idle';
 	let settings: SettingsMap;
 	let context: number[] | undefined;
 	let abortController: AbortController;
@@ -38,6 +39,9 @@
 	let mainContainer: HTMLElement | null;
 	let output: any;
 	let isCode = false;
+	let processingResend = false;
+	
+	setContext('resendPrompt', resendPrompt);
 
 	$: isCode = (
 		prompt.trim().startsWith('@code') ||
@@ -80,17 +84,80 @@
 		});
 	}
 
+	function updater(text: string) {
+		responseStatus = 'responding';
+		responding = text;
+		if (!mainContainer) return;
+
+		const pad = 100;
+		const scrolled = mainContainer.getBoundingClientRect().bottom + mainContainer.scrollTop + pad;
+		if (scrolled >= mainContainer.scrollHeight) {
+			setTimeout(scrollToBottom);
+		}
+	}
+
+	async function getConversationAndOptions() {
+		const conversation = await db.getConversation(conversationId);
+		const options: Record<string, any> = {
+			...settings.options,
+		};
+		Object.keys(settings.options).forEach(k => {
+			const cValue = conversation[k];
+			if (
+				cValue !== 'undefined' &&
+				cValue !== undefined &&
+				cValue !== null) {
+					options[k] = cValue
+				}
+		});
+		return {conversation, options};
+	}
+
 	function abort() {
 		abortController.abort();
 		responding = '';
-		waitingForResponse = false;
+		responseStatus = 'idle';
 	}
 
-  async function sendPrompt() {
+	async function resendPrompt() {
+		if (processingResend) return;
+		pushMessage({message: 'Resending...'});
+		processingResend = true;
+		const { conversation, options } = await getConversationAndOptions();
+		await sendPrompt({conversation});
+		processingResend = false;
+	}
+
+	async function sendPrompt({conversation, options, prompt}: any) {
+		responseStatus = 'waitingForInitial';
+		const messages = conversation?.messages.map((m: Message) => ({
+				role: m.senderType === 'ai' ? 'assistant' : 'user',
+				content: m.text
+			}));
+		const res = await ollamaService.sendPrompt(
+			{ model, messages, options },
+			{ signal: abortSignal }
+		);
+		if (!res) throw new Error('Failed to get response');
+
+		const { text: reply, context: newContext } = await parseChatResponseStream(res, updater);
+		responseStatus = 'idle';
+		responding = '';
+		context = newContext;
+		
+		if (!conversation?.title || conversation.title === 'New conversation') {
+			generateTitle(prompt, reply);
+		}
+
+		await addMessage(Number(conversationId), 'ai', reply);
+		return context;
+	}
+
+  async function prepareAndSendPrompt(create = true) {
 		model = get(selectedModel);
     const modelInvalid = !isValidModelSelection(model);
     const promptEmpty = !prompt?.trim();
-    if (modelInvalid || promptEmpty) {
+    if (modelInvalid || (!create && promptEmpty)) {
       pushMessage({
         title: 'hi!',
         message: modelInvalid ? 'Select a model first' : 'Prompt cannot be empty',
@@ -99,9 +166,7 @@
       return;
     }
 
-		waitingForInitialResponse = true;
-    waitingForResponse = true;
-    let tempPrompt = prompt;
+		responseStatus = 'waitingForInitial';
     abortController = new AbortController();
     abortSignal = abortController.signal;
 
@@ -115,43 +180,16 @@
         });
       }
 
-      await addMessage(Number(conversationId), 'human', prompt);
-			setTimeout(() => {
-				scrollToBottom(500);
-			}, 10);
+			if (create) {
+				await addMessage(Number(conversationId), 'human', prompt);
+				setTimeout(() => {
+					scrollToBottom(500);
+				}, 10);
+			}
 
-			let conversation = await db.getConversation(conversationId);
-			const messages = conversation?.messages.map((m: Message) => ({
-				role: m.senderType === 'ai' ? 'assistant' : 'user',
-				content: m.text
-			}));
-
-			const options: Record<string, any> = {
-				...settings.options,
-			};
-			Object.keys(settings.options).forEach(k => {
-				const cValue = conversation[k];
-				if (
-					cValue !== 'undefined' &&
-					cValue !== undefined &&
-					cValue !== null) {
-						options[k] = cValue
-					}
-			});
+			const { conversation, options } = await getConversationAndOptions();
 
       prompt = '';
-			waitingForInitialResponse = false;
-			
-      const updater = (text: string) => {
-        responding = text;
-				if (!mainContainer) return;
-
-				const pad = 100;
-				const scrolled = mainContainer.getBoundingClientRect().bottom + mainContainer.scrollTop + pad;
-				if (scrolled >= mainContainer.scrollHeight) {
-					setTimeout(scrollToBottom);
-				}
-      };
 						
 			// Enhanced chat
 			/*
@@ -159,25 +197,8 @@
 			const reply = await cnvHandler.handlePrompt(messages);
 			*/
 
-      const res = await ollamaService.sendPrompt(
-        { model, messages, options },
-        { signal: abortSignal }
-      );
-      if (!res) return;
-
-      const { text: reply, context: newContext } = await parseChatResponseStream(res, updater);
-      context = newContext;
-			
-			console.log('Chat.sendPrompt conversation.title', conversation.title, JSON.stringify(conversation, null, 2));
-      if (!conversation?.title || conversation.title === 'New conversation') {
-        generateTitle(tempPrompt, reply);
-      }
-
-      await addMessage(Number(conversationId), 'ai', reply);
-      //await db.updateConversationContext(conversationId, newContext);
-
-      responding = '';
-      waitingForResponse = false;
+			const newContext = await sendPrompt({conversation, options, prompt});
+      await db.updateConversationContext(conversationId, newContext);
 			setTimeout(scrollToBottom, 250);
     } catch (err) {
       console.error('@err', err);
@@ -190,7 +211,7 @@
 				runCode(prompt);
 			}
 			else {
-      	sendPrompt();
+      	prepareAndSendPrompt();
 			}
 		}
 	}
@@ -265,8 +286,8 @@
 
 	<CodeExecutionResult {output} />
 
-	<div class="block invisible mx-auto mt-6" class:!visible={waitingForResponse || responding}>
-		{#if waitingForInitialResponse}
+	<div class="block invisible mx-auto mt-6" class:!visible={responseStatus !== 'idle'}>
+		{#if responseStatus === 'waitingForInitial'}
 		<ProgressRadial
 			class="mx-auto !stroke-teal-600"
 			width="w-10"
@@ -290,10 +311,10 @@
 			on:keydown={handleKeyPress}
 			on:focus={() => updateFocused(true)}
 			on:blur={() => updateFocused(false)}
-			disabled={!$selectedModel || waitingForResponse} />
+			disabled={!$selectedModel || responseStatus !== 'idle'} />
 			<div id="input-button-panel"
 				class="flex p-2 bg-">
-				{#if waitingForResponse || responding}
+				{#if responseStatus !== 'idle'}
 				<button class="btn" on:click={abort} title="Cancel">
 					<IconX />
 				</button>
@@ -302,7 +323,7 @@
 					<IconCode />
 				</button>	
 				{:else}
-				<button class="btn" on:click={sendPrompt} title="Send">
+				<button class="btn" on:click={() => prepareAndSendPrompt()} title="Send">
 					<IconMessage />
 				</button>	
 				{/if}

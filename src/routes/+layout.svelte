@@ -51,7 +51,7 @@
 
 <div class="fixed h-full w-full top-0 left-0 p-0 m-9=0 pointer-events-none bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-gray-950 via-gray-900 to-gray-900">
 	<div class="flex flex-col h-full w-full justify-center">
-		<span class="text-2xl m-auto text-slate-700">gOllama</span>
+		<span class="text-2xl m-auto text-slate-800 text-opacity-40">gOllama</span>
 	</div>
 </div>
 

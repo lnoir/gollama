@@ -2,11 +2,17 @@
 	import IconTrash from 'virtual:icons/tabler/trash';
 	import { pushDialog } from '../../../stores/app.store';
 	import { db } from '../../services/db.service';
-	import { createEventDispatcher } from 'svelte';
+	import { createEventDispatcher, onMount } from 'svelte';
 
 	export let id: number;
+	export let classes = '';
   const title = "Delete message";
   const dispatch = createEventDispatcher();
+	let finalClasses = 'btn';
+
+	onMount(() => {
+		if (classes) finalClasses += ` ${classes}`;
+	});
 
 	function deleteMessage() {
 		db.deleteMessage(id);
@@ -26,7 +32,7 @@
 </script>
 
 <button
-	class="btn absolute z-20 right-0 bottom-5"
+	class="btn {finalClasses}"
 	{title}
 	on:click={handleClick}>
 	<IconTrash />

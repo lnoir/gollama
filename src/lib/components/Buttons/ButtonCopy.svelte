@@ -7,9 +7,10 @@
 	export let text: string;
 	export let title: string = 'Copy this text';
 	export let position: Position = 'top';
-	let classes = position === 'top'
+	export let classes = '';
+	/*position === 'top'
 		? 'right-0 top-5'
-		: 'right-10 bottom-5';
+		: 'right-10 bottom-5';*/
 
 	onMount(() => {
 		
@@ -21,7 +22,7 @@
 </script>
 
 <button
-	class="btn absolute z-20 {classes}"
+	class="btn {classes}"
 	{title}
 	on:click={copyToClipboard}>
 	<IconCopy />

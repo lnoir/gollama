@@ -33,7 +33,6 @@ export async function parseResponseStream(
 	readableStream: ReadableStream<Uint8Array>,
 	updater?: (text: string) => void
 ): Promise<ParsedPromptResponse> {
-	console.log('@parseResponseStream readableStream:', readableStream)
 	return new Promise((resolve, reject) => {
 		const reader = readableStream?.getReader();
 		const textDecoder = new TextDecoder('utf-8');

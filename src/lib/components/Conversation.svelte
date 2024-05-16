@@ -56,9 +56,9 @@
 
 <div id="conversation" class="block mx-auto max-w-3xl p-4">
 	<div class="block w-full">
-		{#each messages as msg}
+		{#each messages as msg, index}
 			{@const { senderType, text, id } = msg}
-			<ChatMessage {senderType} {text} {id} />
+			<ChatMessage {senderType} {text} {id} last={!responding && index === messages.length - 1} />
 		{/each}
 		{#if responding}
 			<ChatMessage senderType="ai" text={responding} parse={false} />
