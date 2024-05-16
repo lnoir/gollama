@@ -55,13 +55,16 @@ export type DbConversation = {
 	num_ctx?: number | undefined;
 }
 
-export type DbMessage = {
+export type DbMessage = ResponseStats & {
 	id?: number;
 	conversationId: number;
 	senderType: string;
 	text: string;
 	time: string;
+	tokens_per_second: number;
 }
+
+export type DbMessageInsert = Partial<DbMessage>;
 
 export type DbSetting = {
 	id?: number;
@@ -119,9 +122,26 @@ export type ModelParams = {
 
 export type ModelOptions = Partial<ModelParams>;
 
+export type ResponseStats = {
+	total_duration: number;
+	load_duration: number;
+	prompt_eval_count: number;
+	prompt_eval_duration: number;
+	eval_count: number;
+	eval_duration: number;
+}
+
 export type ParsedPromptResponse = {
 	text: string;
 	context: number[];
+	final?: ResponseStats & {
+		model: string;
+		created_at: Date;
+		response: string;
+		done: boolean;
+		context: number[];
+
+	}
 };
 
 export type SettingsMap = {

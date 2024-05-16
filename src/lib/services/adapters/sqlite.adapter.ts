@@ -1,5 +1,5 @@
 import { DB_CREATE_STATEMENTS, DB_FILENAME } from '../../../constants';
-import type { DataObject, DbConversation, DbMessage, DbSetting, SettingsMap } from '../../../types';
+import type { DataObject, DbConversation, DbMessage, DbMessageInsert, DbSetting, SettingsMap } from '../../../types';
 import Database from "tauri-plugin-sql-api";
 import { BaseAdapter } from './base.adapter';
 import { trace } from "tauri-plugin-log-api";
@@ -94,7 +94,7 @@ export class SQLiteAdapter extends BaseAdapter {
     );
 	}
 
-	async addMessage(data: DbMessage) {
+	async addMessage(data: DbMessageInsert) {
 		return this.insertInto('messages', data);
 	}
 

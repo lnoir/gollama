@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { ollamaService } from '$services/ollama.service';
 	import { onMount, setContext } from 'svelte';
-	import type { Model, SettingsMap } from '../../types';
+	import type { DbMessageInsert, Model, SettingsMap } from '../../types';
 	import {
 	currentConversationId,
 		type Message,
@@ -10,7 +10,7 @@
 	import { db } from '$services/db.service';
 	import { ProgressRadial } from '@skeletonlabs/skeleton';
 	import Conversation from './Conversation.svelte';
-	import { parseChatResponseStream, runJsCodeInWorker } from '$lib/helpers';
+	import { nanosecondsToSeconds, parseChatResponseStream, runJsCodeInWorker } from '$lib/helpers';
 	import { availableModels, dbReady, menuOpen, messageInputFocused, pushMessage, selectedModel, settingsOpen } from '../../stores/app.store';
 	import { info } from 'tauri-plugin-log-api';
 	import IconMessage from 'virtual:icons/tabler/message';
@@ -58,6 +58,7 @@
 			conversationId = id;
 			if (!id) return;
 			const conversation = await db.getConversation(id);
+			console.log({conversation})
 			if (!conversation) return;
 		});
 		mainContainer = document.getElementById('main');
@@ -140,7 +141,8 @@
 		);
 		if (!res) throw new Error('Failed to get response');
 
-		const { text: reply, context: newContext } = await parseChatResponseStream(res, updater);
+		const { text: reply, context: newContext, final } = await parseChatResponseStream(res, updater);
+		console.log('@final', final);
 		responseStatus = 'idle';
 		responding = '';
 		context = newContext;
@@ -149,7 +151,12 @@
 			generateTitle(prompt, reply);
 		}
 
-		await addMessage(Number(conversationId), 'ai', reply);
+		await addMessage({
+			conversationId: Number(conversationId),
+			senderType: 'ai',
+			text: reply,
+			extra: final
+		});
 		return context;
 	}
 
@@ -181,7 +188,11 @@
       }
 
 			if (create) {
-				await addMessage(Number(conversationId), 'human', prompt);
+				await addMessage({
+					conversationId: Number(conversationId),
+					senderType: 'human',
+					text: prompt,
+				});
 				setTimeout(() => {
 					scrollToBottom(500);
 				}, 10);
@@ -241,13 +252,31 @@
 		return text;
 	}
 
-	async function addMessage(conversationId: number, senderType: SenderType, text: string) {
+	async function addMessage(
+		{conversationId, senderType, text, extra}:
+		{conversationId: number, senderType: SenderType, text: string, extra?: any}
+	) {
+		let {
+			total_duration,
+			load_duration,
+			prompt_eval_count,
+			prompt_eval_duration,
+			eval_count,
+			eval_duration
+		} = (extra || {});
 		const message = {
 			conversationId,
 			senderType,
 			text,
-			time: new Date().toISOString()
-		};
+			time: new Date().toISOString(),
+			total_duration: nanosecondsToSeconds(total_duration) || null,
+			load_duration: nanosecondsToSeconds(load_duration) || null,
+			prompt_eval_count,
+			prompt_eval_duration: nanosecondsToSeconds(prompt_eval_duration) || null,
+			eval_count,
+			eval_duration: nanosecondsToSeconds(eval_duration) || null,
+			tokens_per_second: eval_count ? Number((eval_count / nanosecondsToSeconds(eval_duration)).toFixed(2)) : null
+		} as DbMessageInsert;
 		return await db.addMessage(message);
 	}
 

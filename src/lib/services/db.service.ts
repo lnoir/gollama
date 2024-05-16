@@ -1,5 +1,5 @@
 import { conversationsLastUpdated } from '../../stores/conversation.store';
-import type { DataObject, DbConversation, DbMessage, DbSetting, SettingsMap } from '../../types';
+import type { DataObject, DbConversation, DbMessageInsert, DbSetting, SettingsMap } from '../../types';
 import { SQLiteAdapter } from './adapters/sqlite.adapter';
 
 export class ChatDb {
@@ -41,7 +41,7 @@ export class ChatDb {
 		return await this.db.getConversations();
 	}
 
-	async addMessage(data: DbMessage) {
+	async addMessage(data: DbMessageInsert) {
 		const res = await this.db.addMessage(data);
 		this.bumpUpdate();
 		return res;
@@ -66,7 +66,6 @@ export class ChatDb {
 	async getSettingsMap() {
 		const settings = (await this.getSettings()) as unknown as any[];
 		const map: SettingsMap = { options: {} };
-		//console.debug('@settings', settings);
 		settings.forEach((s) => this.settingToObject(s, map));
 		return map;
 	}

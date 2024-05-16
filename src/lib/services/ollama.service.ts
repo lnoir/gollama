@@ -45,12 +45,12 @@ class OllamaService {
 			context,
 			messages,
 			stream: stream ?? true,
+			keep_alive: '20m',
 			options: {
 				...defaults.options,
 				...options
 			}
 		};
-		console.log(JSON.stringify(body, null, 2));
 		return await this.$postRequest('/chat', body, requestOptions);
 	}
 

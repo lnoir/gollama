@@ -108,7 +108,7 @@ export async function parseChatResponseStream(
 					const json = JSON.parse(textDecoder.decode(value));
 					if (json.done === true) {
 						const { context } = json;
-						return resolve({ text, context });
+						return resolve({ text, context, final: json });
 					}
 					if (json.message?.content) text += json.message?.content;
 					if (updater) updater(text);
@@ -197,4 +197,8 @@ export function runJsCodeInWorker({ code }: { code: string }) {
     // Post the code to the worker
     worker.postMessage({ code });
   });
+}
+
+export function nanosecondsToSeconds(nanoseconds: number): number {
+  return Number((nanoseconds / 1_000_000_000).toFixed(2));
 }
