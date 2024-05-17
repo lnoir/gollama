@@ -27,6 +27,14 @@ export const DB_CREATE_STATEMENTS = [
     load_duration FLOAT,
     tokens_per_second INTEGER
   )`,
+  `CREATE TABLE IF NOT EXISTS images (
+    id INTEGER PRIMARY KEY,
+    messageId INTEGER NOT NULL,
+    imageData BLOB NOT NULL,
+    mimeType TEXT NOT NULL,
+    time DATE NOT NULL,
+    FOREIGN KEY(messageId) REFERENCES messages(id) ON DELETE CASCADE
+  )`,
   `CREATE TABLE IF NOT EXISTS settings (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,

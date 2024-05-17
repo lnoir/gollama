@@ -1,7 +1,7 @@
 export type AppModalType = 'component' | 'confirm' | 'prompt' | 'alert';
 export type AppLevelType = 'info' | 'warn' | 'danger';
 
-export type AppModalOptions = {
+export interface AppModalOptions {
 	title?: string;
 	component?: string;
 	message?: string;
@@ -10,12 +10,12 @@ export type AppModalOptions = {
 	_id?: string;
 };
 
-export type AppDialogOptions = AppModalOptions & {
+export interface AppDialogOptions extends AppModalOptions {
 	type: AppModalType;
 	body?: string;
 };
 
-export type AppMessageOptions = AppModalOptions & {
+export interface AppMessageOptions extends AppModalOptions {
 	type?: AppLevelType;
 	message: string;
 };
@@ -24,9 +24,10 @@ export interface GenericQueueFn<T> {
 	(data: T): void;
 }
 
-export type PromptParamMessage = {
+export interface PromptParamMessage {
 	role: 'system' | 'assistant'| 'user';
 	content: string;
+	images?: string[];
 }
 
 export interface AdapterInterface {
@@ -42,7 +43,7 @@ export interface AdapterInterface {
 	getSettings(): Promise<DbSetting[]>;
 }
 
-export type DbConversation = {
+export interface DbConversation {
 	id?: number;
 	title?: string;
 	model: string;
@@ -55,7 +56,7 @@ export type DbConversation = {
 	num_ctx?: number | undefined;
 }
 
-export type DbMessage = ResponseStats & {
+export interface DbMessage extends ResponseStats {
 	id?: number;
 	conversationId: number;
 	senderType: string;
@@ -64,55 +65,77 @@ export type DbMessage = ResponseStats & {
 	tokens_per_second: number;
 }
 
-export type DbMessageInsert = Partial<DbMessage>;
+export interface HydratedMessage extends DbMessage {
+	images?: DbImage[];
+}
 
-export type DbSetting = {
+export interface DbMessageInsert extends Partial<DbMessage> {}
+
+export interface DbSetting {
 	id?: number;
 	name: string;
 	value: string | number;
 	defaultVal?: string;
 }
 
-export type HydratedConversation = DbConversation & {
-	messages?: DbMessage[];
+export interface DbImage {
+  id: number;
+  messageId: number;
+  imageData: Uint8Array;
+  mimeType: string;
+  time: string;
+}
+
+export interface DbImageInsert extends Omit<DbImage,'id'> {}
+
+export interface ImageUpload {
+	base64: string;
+	file: File;
+	raw: ArrayBuffer;
+}
+
+export interface HydratedConversation extends DbConversation {
+	messages?: HydratedMessage[];
+	[key: string]: any;
 };
 
-export type PromptParams = {
+export interface PromptParams {
 	prompt?: string;
 	model: string;
 	stream?: boolean;
 	format?: 'json'; // only accepted value at the moment
 	messages: PromptParamMessage[];
+	images?: string[];
 	context?: number[];
 	options?: ModelOptions;
 };
 
-export type Model = {
+export interface Model {
 	name: string;
 	digest: string;
 	modified_at: string;
 	size: number;
 };
 
-export type Conversation = {
+export interface Conversation {
 	id: string;
 	name?: string;
 	model: string;
 	messages: DbMessage[];
 };
 
-export type UIConvo = DbConversation & {
+export interface UIConvo extends DbConversation {
 	edit?: boolean;
 	showMenu?: Boolean;
 }
 
-export type PromptSettings = {
+export interface PromptSettings {
 	defaultModel?: string;
 	stream?: boolean;
 	options?: ModelParams;
 };
 
-export type ModelParams = {
+export interface ModelParams {
 	top_k: number;
 	top_p: number;
 	seed: number;
@@ -120,9 +143,9 @@ export type ModelParams = {
 	temperature: number;
 };
 
-export type ModelOptions = Partial<ModelParams>;
+export interface ModelOptions extends Partial<ModelParams> {}
 
-export type ResponseStats = {
+export interface ResponseStats {
 	total_duration: number;
 	load_duration: number;
 	prompt_eval_count: number;
@@ -131,20 +154,21 @@ export type ResponseStats = {
 	eval_duration: number;
 }
 
-export type ParsedPromptResponse = {
+interface FinalChatResponse extends ResponseStats {
+	model: string;
+	created_at: Date;
+	response: string;
+	done: boolean;
+	context: number[];
+}
+
+export interface ParsedPromptResponse {
 	text: string;
 	context: number[];
-	final?: ResponseStats & {
-		model: string;
-		created_at: Date;
-		response: string;
-		done: boolean;
-		context: number[];
-
-	}
+	final?: FinalChatResponse;
 };
 
-export type SettingsMap = {
+export interface SettingsMap {
 	ollama_host?: string;
 	default_model?: string;
 	options: ModelOptions;
@@ -162,7 +186,7 @@ export type SettingsMap = {
 
 export type DbValue = number | number[] | string | boolean | undefined | null;
 
-export type DataObject = {
+export interface DataObject {
 	[key: string]: DbValue;
 };
 

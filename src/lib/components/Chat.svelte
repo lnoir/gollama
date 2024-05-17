@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { ollamaService } from '$services/ollama.service';
 	import { onMount, setContext } from 'svelte';
-	import type { DbMessageInsert, Model, SettingsMap } from '../../types';
+	import type { DbImageInsert, DbMessageInsert, ImageUpload, Model, SettingsMap } from '../../types';
 	import {
 	currentConversationId,
 		type Message,
@@ -10,7 +10,7 @@
 	import { db } from '$services/db.service';
 	import { ProgressRadial } from '@skeletonlabs/skeleton';
 	import Conversation from './Conversation.svelte';
-	import { nanosecondsToSeconds, parseChatResponseStream, runJsCodeInWorker } from '$lib/helpers';
+	import { nanosecondsToSeconds, parseChatResponseStream, uint8ArrayToBase64 } from '$lib/helpers';
 	import { availableModels, dbReady, pushMessage, selectedModel } from '../../stores/app.store';
 	import ButtonScrollBottom from './Buttons/ButtonScrollBottom.svelte';
 	import { search, RetrievalService } from '../services/retrieval.service';
@@ -38,8 +38,6 @@
 	let processingResend = false;
 	
 	setContext('resendPrompt', resendPrompt);
-
-
 
 	onMount(async () => {
 		const dbReadyUnsub = dbReady.subscribe(async ready => {
@@ -113,19 +111,38 @@
 
 	async function resendPrompt() {
 		if (processingResend) return;
+
 		pushMessage({message: 'Resending...'});
 		processingResend = true;
+		const defaultError = `Can't find message`;
 		const { conversation, options } = await getConversationAndOptions();
-		await sendPrompt({conversation});
+		if (!conversation.messages) throw new Error(defaultError);
+
+		const lastHumanMessageIndex = conversation.messages?.findLastIndex(m => m.senderType === 'human');
+		if (!lastHumanMessageIndex) throw new Error(defaultError);
+
+		const message = conversation.messages[lastHumanMessageIndex];
+		const prompt = message.text;
+		let images: string[] = [];
+		if (message.images) {
+			images = message.images.map(i => uint8ArrayToBase64(i.imageData))
+		}
+
+		await sendPrompt({conversation, options, prompt, images });
 		processingResend = false;
 	}
 
-	async function sendPrompt({conversation, options, prompt}: any) {
+	async function sendPrompt({conversation, options, prompt, images}: any) {
 		responseStatus = 'waitingForInitial';
 		const messages = conversation?.messages.map((m: Message) => ({
-				role: m.senderType === 'ai' ? 'assistant' : 'user',
-				content: m.text
-			}));
+			role: m.senderType === 'ai' ? 'assistant' : 'user',
+			content: m.text
+		}));
+
+		if (images?.length) {
+			messages[messages.length - 1].images = images;
+		}
+
 		const res = await ollamaService.sendPrompt(
 			{ model, messages, options },
 			{ signal: abortSignal }
@@ -151,14 +168,14 @@
 	}
 
   async function prepareAndSendPrompt(
-		{input, create}:
-		{input: string, create: boolean}
+		{input, images, create}:
+		{input: string, images?: ImageUpload[]; create: boolean}
 	) {
 		prompt = input;
 		model = get(selectedModel);
     const modelInvalid = !isValidModelSelection(model);
     const promptEmpty = !prompt?.trim();
-    if (modelInvalid || (!create && promptEmpty)) {
+    if (modelInvalid || promptEmpty) {
       pushMessage({
         message: modelInvalid ? 'Select a model first' : 'Prompt cannot be empty',
         type: 'warn'
@@ -180,20 +197,27 @@
         });
       }
 
+			let insertedMessageId: number;
 			if (create) {
-				await addMessage({
+				insertedMessageId = await addMessage({
 					conversationId: Number(conversationId),
 					senderType: 'human',
 					text: prompt,
 				});
+				console.log({insertedMessageId});
+				if (!insertedMessageId) throw new Error('Unable to store message');
+				if (images?.length) {
+					await addImages({
+						messageId: insertedMessageId,
+						images,
+					});
+				}
 				setTimeout(() => {
 					scrollToBottom(500);
 				}, 10);
 			}
 
 			const { conversation, options } = await getConversationAndOptions();
-
-      prompt = '';
 						
 			// Enhanced chat
 			/*
@@ -201,13 +225,20 @@
 			const reply = await cnvHandler.handlePrompt(messages);
 			*/
 
-			const newContext = await sendPrompt({conversation, options, prompt});
+			const base64Images = images?.map(image => image.base64.replace(/data\:image\/[a-z0-9]+;base64,/, ''))
+			const newContext = await sendPrompt({conversation, options, prompt, images: base64Images});
       await db.updateConversationContext(conversationId, newContext);
 			setTimeout(scrollToBottom, 250);
+			prompt = '';
     } catch (err) {
       console.error('@err', err);
     }
   }
+
+	async function onReceiveSendEvent(e: CustomEvent) {
+		const data = { ...e.detail, create: true };
+		await prepareAndSendPrompt(data);
+	}
 
 	async function generateTitle(originalPrompt: string, reply: string) {
 		const exchange = `P1: ${originalPrompt}\n\nP2: ${reply}`;
@@ -262,6 +293,20 @@
 		return await db.addMessage(message);
 	}
 
+	async function addImages(params: {images: ImageUpload[], messageId: number}) {
+		const { images, messageId } = params;
+		console.log(images);
+		for (const image of images) {
+			const data: DbImageInsert = {
+				messageId,
+				time: new Date().toISOString(),
+				mimeType: image.file.type,
+				imageData: new Uint8Array(image.raw),
+			};
+			await db.addImage(data);
+		}
+	}
+
 	function isValidModelSelection(model: string) {
 		if (!models?.length || !model?.trim()) return false;
 		const found = models.find((m) => m.name === model);
@@ -294,5 +339,5 @@
 	on:abort={abort}
 	on:error={(e) => pushMessage({message: e.detail, level: 'danger'})}
 	on:output={e => output = e.detail}
-	on:send={(e) => prepareAndSendPrompt({input: e.detail, create: true})}
+	on:send={onReceiveSendEvent}
 />

@@ -1,5 +1,5 @@
 import { DB_CREATE_STATEMENTS, DB_FILENAME } from '../../../constants';
-import type { DataObject, DbConversation, DbMessage, DbMessageInsert, DbSetting, SettingsMap } from '../../../types';
+import type { DataObject, DbConversation, DbImage, DbImageInsert, DbMessage, DbMessageInsert, DbSetting, SettingsMap } from '../../../types';
 import Database from "tauri-plugin-sql-api";
 import { BaseAdapter } from './base.adapter';
 import { trace } from "tauri-plugin-log-api";
@@ -56,7 +56,7 @@ export class SQLiteAdapter extends BaseAdapter {
 		return this.insertInto('conversations', data);
 	}
 
-	async getConversation(id: number) {
+	async getConversation0(id: number) {
     const conversation = await this.db.select(
       `SELECT * FROM conversations WHERE id = $1`,
       [id]
@@ -71,6 +71,50 @@ export class SQLiteAdapter extends BaseAdapter {
       messages
     }
 	}
+
+  async getConversation(id: number) {
+    const conversation = await this.db.select(
+      `SELECT * FROM conversations WHERE id = $1`,
+      [id]
+    );
+    if (!conversation?.length) return;
+    
+    const messagesWithImages = await this.db.select(
+      `SELECT 
+         m.*, 
+         i.id AS imageId, 
+         i.imageData, 
+         i.mimeType, 
+         i.time AS imageTime 
+       FROM messages m
+       LEFT JOIN images i ON m.id = i.messageId
+       WHERE m.conversationId = $1
+       ORDER BY m.time ASC`,
+      [id]
+    );
+
+    const messagesMap = new Map<number, any>();
+    for (const row of messagesWithImages) {
+      const { imageId, imageData, mimeType, imageTime, ...messageData } = row;
+      if (!messagesMap.has(messageData.id)) {
+        messagesMap.set(messageData.id, { ...messageData, images: [] });
+      }
+      if (imageId) {
+        messagesMap.get(messageData.id).images.push({
+          id: imageId,
+          imageData,
+          mimeType,
+          time: imageTime,
+        });
+      }
+    }
+    const messages = Array.from(messagesMap.values());
+  
+    return {
+      ...conversation[0],
+      messages,
+    };
+  }
 
 	async updateConversation(id: number, data: DataObject) {
 		return this.update('conversations', id, data);
@@ -97,6 +141,10 @@ export class SQLiteAdapter extends BaseAdapter {
 	async addMessage(data: DbMessageInsert) {
 		return this.insertInto('messages', data);
 	}
+
+  async addImage(data: DbImageInsert) {
+    return this.insertInto('images', data);
+  }
 
   async deleteMessage(id: number) {
     await this.db.execute(

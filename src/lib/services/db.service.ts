@@ -1,5 +1,5 @@
 import { conversationsLastUpdated } from '../../stores/conversation.store';
-import type { DataObject, DbConversation, DbMessageInsert, DbSetting, SettingsMap } from '../../types';
+import type { DataObject, DbConversation, DbImageInsert, DbMessageInsert, DbSetting, HydratedConversation, SettingsMap } from '../../types';
 import { SQLiteAdapter } from './adapters/sqlite.adapter';
 
 export class ChatDb {
@@ -15,7 +15,7 @@ export class ChatDb {
 		return res;
 	}
 
-	async getConversation(id: number) {
+	async getConversation(id: number): Promise<HydratedConversation> {
 		return await this.db.getConversation(id);
 	}
 
@@ -45,6 +45,10 @@ export class ChatDb {
 		const res = await this.db.addMessage(data);
 		this.bumpUpdate();
 		return res;
+	}
+
+	async addImage(data: DbImageInsert) {
+		const res = await this.db.addImage(data);
 	}
 
 	async deleteMessage(id: number) {
