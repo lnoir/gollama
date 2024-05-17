@@ -1,4 +1,5 @@
 import { writable, type Writable } from 'svelte/store';
+import type { ResponseStatus } from '../types';
 
 export type Conversations = {
 	[key: string]: Conversation;
@@ -17,8 +18,9 @@ export type Message = {
 	time: string;
 };
 
-export const conversations: Writable<Conversations> = writable({});
-export const conversationsLastUpdated: Writable<Date> = writable();
-export const currentConversationId: Writable<number> = writable(0);
-export const streamingReply: Writable<string> = writable('');
+export const conversations = writable<Conversations>({});
+export const conversationsLastUpdated = writable<Date>();
+export const currentConversationId = writable<number>(0);
+export const streamingReply = writable<string>('');
 export const currentConversationMessageCount = writable(0);
+export const responseStatus = writable<ResponseStatus>('idle');

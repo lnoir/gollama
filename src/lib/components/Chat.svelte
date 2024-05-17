@@ -11,16 +11,13 @@
 	import { ProgressRadial } from '@skeletonlabs/skeleton';
 	import Conversation from './Conversation.svelte';
 	import { nanosecondsToSeconds, parseChatResponseStream, runJsCodeInWorker } from '$lib/helpers';
-	import { availableModels, dbReady, menuOpen, messageInputFocused, pushMessage, selectedModel, settingsOpen } from '../../stores/app.store';
-	import { info } from 'tauri-plugin-log-api';
-	import IconMessage from 'virtual:icons/tabler/message';
+	import { availableModels, dbReady, pushMessage, selectedModel } from '../../stores/app.store';
 	import ButtonScrollBottom from './Buttons/ButtonScrollBottom.svelte';
-	import IconX from 'virtual:icons/tabler/x';
-	import IconCode from 'virtual:icons/tabler/code';
 	import { search, RetrievalService } from '../services/retrieval.service';
 	import { onNavigate } from '$app/navigation';
 	import { get } from 'svelte/store';
 	import CodeExecutionResult from './CodeExecutionResult.svelte';
+	import ChatInput from './ChatInput.svelte';
 
 	export let conversationId = 0;
 
@@ -38,15 +35,11 @@
   let previousConversationId: number;
 	let mainContainer: HTMLElement | null;
 	let output: any;
-	let isCode = false;
 	let processingResend = false;
 	
 	setContext('resendPrompt', resendPrompt);
 
-	$: isCode = (
-		prompt.trim().startsWith('@code') ||
-		(prompt.startsWith('```') && prompt.endsWith('```'))
-	);
+
 
 	onMount(async () => {
 		const dbReadyUnsub = dbReady.subscribe(async ready => {
@@ -58,7 +51,6 @@
 			conversationId = id;
 			if (!id) return;
 			const conversation = await db.getConversation(id);
-			console.log({conversation})
 			if (!conversation) return;
 		});
 		mainContainer = document.getElementById('main');
@@ -68,7 +60,6 @@
 	});
 
 	onNavigate(async ({from, to}) => {
-		console.log({from, to});
 		if (to?.url.pathname === '/') {
 			conversationId = 0;
 		}
@@ -142,7 +133,6 @@
 		if (!res) throw new Error('Failed to get response');
 
 		const { text: reply, context: newContext, final } = await parseChatResponseStream(res, updater);
-		console.log('@final', final);
 		responseStatus = 'idle';
 		responding = '';
 		context = newContext;
@@ -160,13 +150,16 @@
 		return context;
 	}
 
-  async function prepareAndSendPrompt(create = true) {
+  async function prepareAndSendPrompt(
+		{input, create}:
+		{input: string, create: boolean}
+	) {
+		prompt = input;
 		model = get(selectedModel);
     const modelInvalid = !isValidModelSelection(model);
     const promptEmpty = !prompt?.trim();
     if (modelInvalid || (!create && promptEmpty)) {
       pushMessage({
-        title: 'hi!',
         message: modelInvalid ? 'Select a model first' : 'Prompt cannot be empty',
         type: 'warn'
       });
@@ -215,17 +208,6 @@
       console.error('@err', err);
     }
   }
-
-	async function handleKeyPress(e: KeyboardEvent) {
-		if ((e.ctrlKey || e.metaKey) && e.code === 'Enter') {
-			if (isCode) {
-				runCode(prompt);
-			}
-			else {
-      	prepareAndSendPrompt();
-			}
-		}
-	}
 
 	async function generateTitle(originalPrompt: string, reply: string) {
 		const exchange = `P1: ${originalPrompt}\n\nP2: ${reply}`;
@@ -285,29 +267,6 @@
 		const found = models.find((m) => m.name === model);
 		return !!found;
 	}
-
-	async function updateFocused(focused: boolean) {
-		messageInputFocused.update(() => focused);
-		if (focused) {
-			menuOpen.update(_ => false);
-			settingsOpen.update(_ => false);
-		}
-		info(`Message input focused: ${focused}`);
-	}
-
-	async function runCode(text: string) {
-		let code = text.trim().replace('@code', '').replace(/(```)/g, '');
-		console.log({code});
-		try {
-			output = await runJsCodeInWorker({
-				code,
-			});
-			console.log('@out', output);
-		}
-		catch(err: any) {
-			output = err.message;
-		}
-	}
 </script>
 
 <div class="block relative mx-auto max-w-3xl p-4 pt-0 pb-20">
@@ -329,34 +288,11 @@
 	<ButtonScrollBottom target="#conversation" root="#main" />
 </div>
 
-<div class="fixed left-0 bottom-0 w-full z-30">
-	<div class="flex w-2/3 m-4 mx-auto max-w-3xl min-h-16 dark:bg-slate-900 rounded-md border border-slate-500">
-		<textarea
-			id="message-input"
-			class="textarea min-h-16 rounded-none rounded-s-md border-none overflow-hidden w-full bg-transparent dark:bg-slate-900 px-4 py-2 max-h-48"
-			placeholder="Type something..."
-			autocapitalize="off"
-			autocomplete="off"
-			bind:value={prompt}
-			on:keydown={handleKeyPress}
-			on:focus={() => updateFocused(true)}
-			on:blur={() => updateFocused(false)}
-			disabled={!$selectedModel || responseStatus !== 'idle'} />
-			<div id="input-button-panel"
-				class="flex p-2 bg-">
-				{#if responseStatus !== 'idle'}
-				<button class="btn" on:click={abort} title="Cancel">
-					<IconX />
-				</button>
-				{:else if isCode}
-				<button class="btn" on:click={() => runCode(prompt)} title="Run">
-					<IconCode />
-				</button>	
-				{:else}
-				<button class="btn" on:click={() => prepareAndSendPrompt()} title="Send">
-					<IconMessage />
-				</button>	
-				{/if}
-			</div>
-	</div>
-</div>
+<ChatInput
+	disabled={!$selectedModel || responseStatus !== 'idle'}
+	{prompt}
+	on:abort={abort}
+	on:error={(e) => pushMessage({message: e.detail, level: 'danger'})}
+	on:output={e => output = e.detail}
+	on:send={(e) => prepareAndSendPrompt({input: e.detail, create: true})}
+/>

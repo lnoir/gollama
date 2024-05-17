@@ -165,3 +165,5 @@ export type DbValue = number | number[] | string | boolean | undefined | null;
 export type DataObject = {
 	[key: string]: DbValue;
 };
+
+export type ResponseStatus = 'idle' | 'waitingForInitial' | 'responding';
