@@ -50,6 +50,8 @@
 			if (!id) return;
 			const conversation = await db.getConversation(id);
 			if (!conversation) return;
+			selectedModel.set(conversation.model);
+			console.log('conversation.model', conversation.model)
 		});
 		mainContainer = document.getElementById('main');
 		availableModels.subscribe(available => {
@@ -162,7 +164,8 @@
 			conversationId: Number(conversationId),
 			senderType: 'ai',
 			text: reply,
-			extra: final
+			extra: final,
+			model
 		});
 		return context;
 	}
@@ -202,7 +205,7 @@
 				insertedMessageId = await addMessage({
 					conversationId: Number(conversationId),
 					senderType: 'human',
-					text: prompt,
+					text: prompt
 				});
 				console.log({insertedMessageId});
 				if (!insertedMessageId) throw new Error('Unable to store message');
@@ -266,8 +269,8 @@
 	}
 
 	async function addMessage(
-		{conversationId, senderType, text, extra}:
-		{conversationId: number, senderType: SenderType, text: string, extra?: any}
+		{conversationId, senderType, text, extra, model}:
+		{conversationId: number, senderType: SenderType, text: string, extra?: any, model?: string}
 	) {
 		let {
 			total_duration,
@@ -281,6 +284,7 @@
 			conversationId,
 			senderType,
 			text,
+			model,
 			time: new Date().toISOString(),
 			total_duration: nanosecondsToSeconds(total_duration) || null,
 			load_duration: nanosecondsToSeconds(load_duration) || null,

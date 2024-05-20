@@ -62,7 +62,8 @@ export interface DbMessage extends ResponseStats {
 	senderType: string;
 	text: string;
 	time: string;
-	tokens_per_second: number;
+	tokens_per_second: number | undefined;
+	model: string | undefined;
 }
 
 export interface HydratedMessage extends DbMessage {

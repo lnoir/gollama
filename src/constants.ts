@@ -17,6 +17,7 @@ export const DB_CREATE_STATEMENTS = [
     id INTEGER PRIMARY KEY,
     conversationId INTEGER NOT NULL,
     senderType TEXT NOT NULL,
+    parentMessageId INTEGER,
     text TEXT NOT NULL,
     time DATE NOT NULL,
     eval_count INTEGER,
@@ -25,7 +26,8 @@ export const DB_CREATE_STATEMENTS = [
     prompt_eval_duration FLOAT,
     total_duration FLOAT,
     load_duration FLOAT,
-    tokens_per_second INTEGER
+    tokens_per_second INTEGER,
+    FOREIGN KEY(conversationId) REFERENCES conversations(id) ON DELETE CASCADE
   )`,
   `CREATE TABLE IF NOT EXISTS images (
     id INTEGER PRIMARY KEY,

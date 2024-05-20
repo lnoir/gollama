@@ -4,6 +4,8 @@
 	import ButtonDelete from './Buttons/ButtonDelete.svelte';
 	import ButtonResend from './Buttons/ButtonResend.svelte';
 	import { getContext } from 'svelte';
+	import { get } from 'svelte/store';
+	import { selectedModel } from '../../stores/app.store';
 	import type { DbMessage } from '../../types';
 
 	export let id = 0;
@@ -13,10 +15,11 @@
 	export let last = false;
 	export let message: DbMessage | null =  null;
 	export let onDelete = () => {
-		console.log('@delete', id);
+		console.log('@delete not implemented', id);
 	};
 
 	const resendPrompt: any = getContext('resendPrompt');
+	const model = get(selectedModel);
 
 	let classes: Record<string, string> = {
 		human: 'bg-slate-900 border-b-slate-800',
@@ -30,9 +33,12 @@
 			<svelte:fragment slot="footer">
 				<div class="flex justify-between px-2 rounded-b-md border-b border-b-1 {classes[senderType]}">
 					<div class="stats p-2">
+						{#if senderType === 'ai'}
+						<span class="stat text-xs text-zinc-600">{message?.model || model || ''}</span>
 						{#if message?.total_duration}
-						<span class="stat text-xs text-zinc-500">Time: {message?.total_duration}s</span>
-						<span class="stat text-xs text-zinc-500">TPS: {message?.tokens_per_second}</span>
+						<span class="stat text-xs text-zinc-600"> {message?.total_duration}s</span>
+						<span class="stat text-xs text-zinc-600">{message?.tokens_per_second} t/s</span>
+						{/if}
 						{/if}
 					</div>
 					<div 

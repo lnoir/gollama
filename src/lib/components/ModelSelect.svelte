@@ -5,9 +5,10 @@
   import IconRefresh from 'virtual:icons/tabler/refresh';
 	import type { Model } from '../../types';
 	import { selectedModel } from '../../stores/app.store';
+	import { get } from 'svelte/store';
 
   export let models: Model[] = [];
-  export let model: string;
+  export let model: string = get(selectedModel);
 
   const dispatch = createEventDispatcher();
   
