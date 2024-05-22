@@ -13,8 +13,7 @@
 	import type { AppDialogOptions, AppMessageOptions } from '../types';
 	import SettingsPanel from '$components/SettingsPanel.svelte';
 
-	let showMenu = true;
-	let showSettings = false;
+	import { appWindow } from '@tauri-apps/api/window';
 
 	const modalRegistry: Record<string, ModalComponent> = {
 		settings: { ref: Settings }
@@ -26,6 +25,7 @@
 	let toastStore = getToastStore();
 
 	onMount(async () => {
+		await appWindow.setTitle(`gollama ${import.meta.env.DEV ? ' [DEV]' : ''}`);
 		messageQueue.subscribe((messages) => {
 			if (!messages.length) return;
       const data = messages.shift();

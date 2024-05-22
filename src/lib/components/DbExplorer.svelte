@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import Paginate from '$components/Paginate.svelte';
+  // import Paginate from '$components/Paginate.svelte';
 	import { db } from '../services/db.service';
 
   interface RowData {
@@ -42,7 +42,6 @@
   <form class="block mb-4 max-w-2xl mx-auto sticky top-0 bg-slate-900" on:submit={handleSubmit}>
     <textarea
       rows="5"
-      type="text"
       bind:value={query}
       placeholder="Enter your query"
       class="block rounded p-4 mr-2 text-white w-full"

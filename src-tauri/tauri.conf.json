@@ -32,6 +32,9 @@
           "http://*",
           "https://*"
         ]
+      },
+      "window": {
+        "setTitle": true
       }
     },
     "bundle": {

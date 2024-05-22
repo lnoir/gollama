@@ -4,14 +4,12 @@
 
   export let image: any;
   let url: string;
-  let arr:any;
 
   onMount(() => {
     if (!image) return;
     const json = JSON.parse(image.imageData);
-    arr = Object.values(json);
-    const raw = arrayBufferToBase64(arr);
-    url = `data:${image.mimeType};base64,${raw}`;
+    const arr = Object.values(json) as unknown as Uint8Array;
+    url = `data:${image.mimeType};base64,${arrayBufferToBase64(arr)}`;
   });
 
   export function arrayBufferToBase64(buffer: Uint8Array): string {
@@ -25,4 +23,4 @@
   }
 </script>
 
-<img src={url} alt="Prompted" class="block mx-auto mb-12 max-w-sm rounded-md"/>
+<img src={url} alt="Prompted" class="block mx-auto mb-12 max-w-sm rounded-md" />
