@@ -92,6 +92,46 @@ export class ChatDb {
 	bumpUpdate() {
 		conversationsLastUpdated.update(() => new Date());
 	}
+
+	async queryDatabase({ page, itemsPerPage, query }: QueryDatabaseParams): Promise<any> {
+		// This function should query your SQLite database and return the results.
+		// Here, I'm providing a mock implementation.
+		const totalRecords = 100; // Assume 100 records in the database
+		const totalPages = Math.ceil(totalRecords / itemsPerPage);
+		const res = await this.db.queryDatabase({query});
+		console.log(res);
+		return res;
+	/*
+		const results = [];
+		for (let i = 0; i < itemsPerPage; i++) {
+			const id = (page - 1) * itemsPerPage + i + 1;
+			if (id > totalRecords) break;
+			results.push({
+				id,
+				name: `Name ${id}`,
+				age: 20 + (id % 30),
+				email: `name${id}@example.com`,
+				additional: `Additional data ${id}` // Arbitrary additional data for demonstration
+			});
+		}
+
+	
+		return {
+			results,
+			totalPages,
+		};*/
+	}
 }
+
+export interface QueryDatabaseParams {
+  page: number;
+  itemsPerPage: number;
+  query: string;
+}
+
+export interface QueryDatabaseResult {
+  results: Array<{ [key: string]: any }>;
+  totalPages: number;
+} 
 
 export const db = new ChatDb();

@@ -62,6 +62,9 @@
 				on:click={newConversation}>
 				<IconMessage class="h-5 w-5" /><span>New Conversation</span>
 			</button>
+			<!--
+				<a href="/explore" title="Explore database">[SQL]</a>
+			-->
 		</svelte:fragment>
 		<svelte:fragment slot="trail">
 			<ModelSelect {models} {model} on:refresh={getModels} />

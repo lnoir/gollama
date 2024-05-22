@@ -87,7 +87,7 @@ export class SQLiteAdapter extends BaseAdapter {
          i.mimeType, 
          i.time AS imageTime 
        FROM messages m
-       LEFT JOIN images i ON m.id = i.messageId
+       LEFT OUTER JOIN images i ON m.id = i.messageId
        WHERE m.conversationId = $1
        ORDER BY m.time ASC`,
       [id]
@@ -191,6 +191,10 @@ export class SQLiteAdapter extends BaseAdapter {
 		settings.forEach((s) => this.settingToObject(s, map));
 		return map;
 	}
+
+  async queryDatabase(data: any) {
+    return this.db?.select(data.query);
+  }
 }
 
 export const db = new SQLiteAdapter();
