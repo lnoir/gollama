@@ -93,6 +93,7 @@
 		<div class="p-4 whitespace-pre-wrap">
 			{@html sanitizedText}
 		</div>
+		<slot name="images" />
 		<slot name="footer" />
 	</div>
 </div>

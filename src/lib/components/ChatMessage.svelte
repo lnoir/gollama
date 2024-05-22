@@ -6,14 +6,15 @@
 	import { getContext } from 'svelte';
 	import { get } from 'svelte/store';
 	import { selectedModel } from '../../stores/app.store';
-	import type { DbMessage } from '../../types';
+	import type { HydratedMessage } from '../../types';
+	import ChatImage from './ChatImage.svelte';
 
 	export let id = 0;
 	export let senderType = '';
 	export let text = '';
 	export let parse = true;
 	export let last = false;
-	export let message: DbMessage | null =  null;
+	export let message: HydratedMessage | null =  null;
 	export let onDelete = () => {
 		console.log('@delete not implemented', id);
 	};
@@ -30,6 +31,13 @@
 <div class="w-full mt-4 relative group" data-message-id={id}>
 	<div class="relative">
 		<ChatMessageBubble {senderType} {text} {parse}>
+			<svelte:fragment slot="images">
+				{#if message?.images?.length}
+					{#each message.images as image}
+					<ChatImage {image} />
+					{/each}
+				{/if}
+			</svelte:fragment>
 			<svelte:fragment slot="footer">
 				<div class="flex justify-between px-2 rounded-b-md border-b border-b-1 {classes[senderType]}">
 					<div class="stats p-2">
