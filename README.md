@@ -2,7 +2,7 @@
 
 A simple Ollama front-end.
 
-![](static/screenshot_01.png)
+![](static/screenshot_02.png)
 
 ## Requirements
 - Running instance of Ollama (and at least one model)
