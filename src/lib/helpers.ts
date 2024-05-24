@@ -55,6 +55,7 @@ export async function parseResponseStream(
 				for (const part of parts.filter((p) => !!p?.trim())) {
 					currentStreamPart = part;
 					const json = JSON.parse(textDecoder.decode(value));
+					console.log(json);
 					if (json.done === true) {
 						const { context } = json;
 						return resolve({ text, context });
@@ -104,8 +105,8 @@ export async function parseChatResponseStream(
 				currentStreamValue = decoded;
 				const parts = decoded.split('\n');
 				for (const part of parts.filter((p) => !!p?.trim())) {
-					//console.log('@part', part)
-					const json = JSON.parse(textDecoder.decode(value));
+					// console.log('@part', part)
+					const json = JSON.parse(part);
 					if (json.done === true) {
 						const { context } = json;
 						return resolve({ text, context, final: json });
@@ -210,4 +211,13 @@ export function uint8ArrayToBase64(uint8Array: Uint8Array): string {
     binary += String.fromCharCode(uint8Array[i]);
   }
   return btoa(binary);
+}
+
+export async function getOllamaResult(result: any, updater?: any) {
+	if (!result) throw new Error('Result is empty!');
+	const parsed = await parseChatResponseStream(result, updater);
+	console.log('@getOllamaResultText', {parsed});
+	const { text } = parsed;
+	console.log({text, parsed});
+	return parsed;
 }

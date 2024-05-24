@@ -2,12 +2,13 @@ import { ollamaHost } from '../../stores/settings.store';
 import { get } from 'svelte/store';
 import type { Model, PromptParams } from '../../types';
 import { db } from './db.service';
+import type { PromptHandler } from './prompt.handler';
 
 type RequestOptions = {
 	signal?: AbortSignal;
 };
 
-class OllamaService {
+class OllamaService implements PromptHandler {
 	baseUrl = '';
 
 	constructor() {

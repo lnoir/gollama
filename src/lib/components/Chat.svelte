@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { ollamaService } from '$services/ollama.service';
-	import { onMount, setContext } from 'svelte';
+	import { onDestroy, onMount, setContext } from 'svelte';
 	import type { DbImageInsert, DbMessageInsert, ImageUpload, Model, SettingsMap } from '../../types';
 	import {
 	currentConversationId,
@@ -13,11 +13,11 @@
 	import { nanosecondsToSeconds, parseChatResponseStream, uint8ArrayToBase64 } from '$lib/helpers';
 	import { availableModels, dbReady, pushMessage, selectedModel } from '../../stores/app.store';
 	import ButtonScrollBottom from './Buttons/ButtonScrollBottom.svelte';
-	import { search, RetrievalService } from '../services/retrieval.service';
 	import { onNavigate } from '$app/navigation';
 	import { get } from 'svelte/store';
 	import CodeExecutionResult from './CodeExecutionResult.svelte';
 	import ChatInput from './ChatInput.svelte';
+	import { Retriever } from '../services/retrieval/retriever';
 
 	export let conversationId = 0;
 
@@ -36,6 +36,8 @@
 	let mainContainer: HTMLElement | null;
 	let output: any;
 	let processingResend = false;
+	let toolsEnabled = false;
+	const unsubs:any = [];
 	
 	setContext('resendPrompt', resendPrompt);
 
@@ -44,20 +46,30 @@
 			settings = (await db.getSettingsMap()) as SettingsMap;
 			dbReadyUnsub();
 		});
-		currentConversationId.subscribe(async id => {
-			if (id && previousConversationId === id) return;
-			conversationId = id;
-			if (!id) return;
-			const conversation = await db.getConversation(id);
-			if (!conversation) return;
-			selectedModel.set(conversation.model);
-			console.log('conversation.model', conversation.model)
-		});
+		unsubs.push(
+			currentConversationId.subscribe(async id => {
+				if (id && previousConversationId === id) return;
+				conversationId = id;
+				if (!id) return;
+				const conversation = await db.getConversation(id);
+				if (!conversation) return;
+				selectedModel.set(conversation.model);
+			})
+		);
 		mainContainer = document.getElementById('main');
-		availableModels.subscribe(available => {
-			models = available;
-		});
+		unsubs.push(
+			availableModels.subscribe(available => {
+				models = available;
+			})
+		);
 	});
+
+	onDestroy(() => {
+		for (const unsub of unsubs) unsub();
+		currentConversationId.set(0);
+		prompt = '';
+		output = '';
+	})
 
 	onNavigate(async ({from, to}) => {
 		if (to?.url.pathname === '/') {
@@ -90,6 +102,7 @@
 
 	async function getConversationAndOptions() {
 		const conversation = await db.getConversation(conversationId);
+		console.log('@getConversationAndOptions', conversationId, conversation);
 		const options: Record<string, any> = {
 			...settings.options,
 		};
@@ -145,16 +158,20 @@
 			messages[messages.length - 1].images = images;
 		}
 
-		const res = await ollamaService.sendPrompt(
+		//const res = await ollamaService.sendPrompt(
+		console.log({toolsEnabled})
+		const toolName = toolsEnabled ? '' : 'chat-response';
+		const retriever = new Retriever({updater, toolName});
+		const res = await retriever.sendPrompt(
 			{ model, messages, options },
 			{ signal: abortSignal }
 		);
+		console.log('@post-retriever:', res);
 		if (!res) throw new Error('Failed to get response');
+		const { text: reply, final } = res;
 
-		const { text: reply, context: newContext, final } = await parseChatResponseStream(res, updater);
 		responseStatus = 'idle';
 		responding = '';
-		context = newContext;
 		
 		if (!conversation?.title || conversation.title === 'New conversation') {
 			generateTitle(prompt, reply);
@@ -221,16 +238,8 @@
 			}
 
 			const { conversation, options } = await getConversationAndOptions();
-						
-			// Enhanced chat
-			/*
-			const cnvHandler = new ConversationHandler({model, params: options, updater});
-			const reply = await cnvHandler.handlePrompt(messages);
-			*/
-
 			const base64Images = images?.map(image => image.base64.replace(/data\:image\/[a-z0-9]+;base64,/, ''))
-			const newContext = await sendPrompt({conversation, options, prompt, images: base64Images});
-      await db.updateConversationContext(conversationId, newContext);
+			await sendPrompt({conversation, options, prompt, images: base64Images});
 			setTimeout(scrollToBottom, 250);
 			prompt = '';
     } catch (err) {
@@ -316,9 +325,14 @@
 		const found = models.find((m) => m.name === model);
 		return !!found;
 	}
+
+	function updateToolsEnabled(e: CustomEvent) {
+		console.log('@updateToolEnabled', e, e.detail);
+		toolsEnabled = e.detail;
+	}
 </script>
 
-<div class="block relative mx-auto max-w-3xl p-4 pt-0 pb-20">
+<div class="block relative mx-auto max-w-3xl p-4 pt-0 pb-32">
 	
 	<Conversation {conversationId} {responding} />
 
@@ -340,8 +354,9 @@
 <ChatInput
 	disabled={!$selectedModel || responseStatus !== 'idle'}
 	{prompt}
+	on:tools={updateToolsEnabled}
 	on:abort={abort}
-	on:error={(e) => pushMessage({message: e.detail, level: 'danger'})}
+	on:error={e => pushMessage({message: e.detail, level: 'danger'})}
 	on:output={e => output = e.detail}
 	on:send={onReceiveSendEvent}
 />

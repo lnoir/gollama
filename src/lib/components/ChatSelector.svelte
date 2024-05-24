@@ -14,26 +14,33 @@
 
 	export let show = true;
 
-
 	let convos: DbConversation[] = [];
 	let conversationId: number;
-	let windowUnsub: any;
-	let toggleUnsub: any;
 	let searchTerm = '';
+	let lastUpdate: string;
+	let unsubs: any[] = [];
 	$: filteredConvos = convos.filter(convo => convo?.title?.toLowerCase().includes(searchTerm.trim().toLowerCase()));
 
 	onMount(async () => {
 		dbReady.subscribe(async ready => {
+			console.log('dbready')
 			if (!ready) return;
+			if (lastUpdate) return;
 
-			convos = await db.getConversations();
-
-			currentConversationId.subscribe((currentId) => {
-				conversationId = Number(currentId);
-			});
-			conversationsLastUpdated.subscribe(async () => {
-				convos = await db.getConversations();
-			});
+			unsubs.push(
+				currentConversationId.subscribe((currentId) => {
+					conversationId = Number(currentId);
+				})
+			);
+			unsubs.push(
+				conversationsLastUpdated.subscribe(async (value) => {
+					const date = value?.toISOString();
+					if (!date || date !== lastUpdate) {
+						lastUpdate = date;
+						convos = await db.getConversations();
+					}
+				})
+			);
 		});
 		
 		menuOverlapping.subscribe(overlap => {
@@ -41,18 +48,23 @@
 			if (!overlap || !show || !get(messageInputFocused)) return;
 			show = false;
 		});
-		windowUnsub = await appWindow.onResized(() => {
-			updateMenuOverlap();
-		});
-		toggleUnsub = await listen('close_menu', () => {
-			show = false;
-		});
+		unsubs.push(
+			await appWindow.onResized(() => {
+				updateMenuOverlap();
+			})
+		);
+		unsubs.push(
+			await listen('close_menu', () => {
+				show = false;
+			})
+		);
 	});
 
 	onDestroy(() => {
-		trace('destroyed')
-		windowUnsub();
-		toggleUnsub();
+		trace('destroyed');
+		for (const unsub of unsubs) {
+			unsub();
+		}
 	});
 </script>
 

@@ -4,6 +4,8 @@
   import { createEventDispatcher } from 'svelte';
   import { runJsCodeInWorker } from '$lib/helpers';
   
+  import { SlideToggle } from '@skeletonlabs/skeleton';
+
   import IconMessage from 'virtual:icons/tabler/message';
   import IconX from 'virtual:icons/tabler/x';
   import IconCode from 'virtual:icons/tabler/code';
@@ -15,6 +17,7 @@
   
   export let disabled: boolean; 
   export let prompt = '';
+  export let toolsEnabled = false;
   
   let fileInput: HTMLInputElement;
   let imagePreviews: ImageUpload[] = [];
@@ -113,10 +116,21 @@
 		}
 		imagePreviews = temp;
   }
+
+  function handleToolUpdate(e: Event) {
+    const target = e.target as HTMLInputElement;
+    console.log('target', e, target, target.checked);
+    dispatch('tools', target.checked);
+  }
 </script>
 
 <div class="fixed left-0 bottom-0 w-full z-30">
   <div class="flex w-2/3 m-4 mx-auto max-w-3xl min-h-16 dark:bg-slate-900 rounded-md border border-slate-500 relative">
+    <div class="inline-block absolute -top-10 py-1 px-2 h-8 left-0 rounded-full dark:bg-slate-900">
+      <SlideToggle name="slide" size="sm" bind:checked={toolsEnabled} on:change={handleToolUpdate}>
+        Tools {toolsEnabled ? 'En' : 'Dis'}abled
+      </SlideToggle> 
+    </div>
 		{#if imagePreviews.length > 0}
 			<div 
 				class="absolute bottom-full mb-2 right-0 w-24 h-24 bg-white dark:bg-gray-800 p-2 border border-gray-500 rounded-md group"
@@ -150,10 +164,9 @@
 				{/if}
 			</div>
 		{/if}
-	
     <textarea
       id="message-input"
-      class="textarea min-h-16 rounded-none rounded-s-md border-none overflow-hidden w-full bg-transparent dark:bg-slate-900 px-4 py-2 max-h-48"
+      class="textarea min-h-16 rounded-none rounded-s-md border-none overflow-x-hidden overflow-y-auto w-full bg-transparent dark:bg-slate-900 px-4 py-2 max-h-48"
       placeholder="Type something..."
       autocapitalize="off"
       autocomplete="off"
