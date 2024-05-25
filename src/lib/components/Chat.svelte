@@ -18,6 +18,9 @@
 	import CodeExecutionResult from './CodeExecutionResult.svelte';
 	import ChatInput from './ChatInput.svelte';
 	import { Retriever } from '../services/retrieval/retriever';
+	import ProgressMessage from './ProgressMessageItem.svelte';
+	import { fade, slide } from 'svelte/transition';
+	import ProgressMessages from './ProgressMessages.svelte';
 
 	export let conversationId = 0;
 
@@ -243,7 +246,7 @@
 			setTimeout(scrollToBottom, 250);
 			prompt = '';
     } catch (err) {
-      console.error('@err', err);
+      console.error('@err', err, responseStatus);
     }
   }
 
@@ -335,6 +338,8 @@
 <div class="block relative mx-auto max-w-3xl p-4 pt-0 pb-32">
 	
 	<Conversation {conversationId} {responding} />
+
+	<ProgressMessages />
 
 	<CodeExecutionResult {output} />
 

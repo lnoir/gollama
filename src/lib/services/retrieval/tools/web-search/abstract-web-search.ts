@@ -20,6 +20,15 @@ interface WebSearchResult {
   links: ResultLink[],
   raw: string;
   body: string;
+  term: string;
+}
+
+interface VisitResult extends ResultLink {
+  data: string
+}
+
+interface VisitError {
+  error: string;
 }
 
 interface CheckedResult extends ResultLink, EvaluationResult {}
@@ -37,7 +46,7 @@ export abstract class AbstractWebSearch extends Tool {
   maxSources = 3;
   searchTemplate?: SearchTemplate;
   
-  configure(data: WebSearchConfigureParams) {
+  public configure(data: WebSearchConfigureParams) {
     if (!data.getPromptResponse) throw new Error('WebSearch needs access to prompt LLM!');
     if (!data.originalData) throw new Error('WebSearch missing access to original prompt!')
     
@@ -48,8 +57,12 @@ export abstract class AbstractWebSearch extends Tool {
     this.evaluate = data.evaluate;
   }
   
-  private async getSearchTerm() {
-    const systemPrompt = `Your job is to extract and return the keywords that should be used to search the web in order to answer the user's query. Return a JSON object containing the keywords in the following format: {"keywords": "the search term"}\nReturn only the JSON. Include no other text or commentary.`
+  private async getSearchTerms(): Promise<string[]> {
+    const systemPrompt = 
+`Your job is to extract and return the keywords that should be used to search the web in order to answer the user's query.
+Return a JSON object containing the keywords in the following format: {"keywords": ["term one", "term two", "term three"]}
+If only one term is necessary, return an array containing one term. Return no more three terms.
+Return only the JSON. Include no other text or commentary.`;
     const result = await this.getPromptResponse({
       model: 'llama3:latest', // @TODO: remove hard-coded model
       messages: [
@@ -60,7 +73,7 @@ export abstract class AbstractWebSearch extends Tool {
         ...this.originalData.messages,
         {
           role: 'user',
-          content: `Provide the search term I should use to find this information on the web. Return JSON in the format: {"keywords": "the search term"}\nReturn no other text or commentary.`
+          content: `Provide no more than three search term(s) I should use to find this information on the web. Return JSON in the format: {"keywords": ["first search term", " second term", "..."]}\nReturn no other text or commentary.`
         }
       ],
       options: {
@@ -75,7 +88,7 @@ export abstract class AbstractWebSearch extends Tool {
 
   private async searchTheWeb(term: string): Promise<WebSearchResult> {
     console.log('@search...', term);
-    if (!term) return {links: [], raw: '', body: ''};
+    if (!term) return {links: [], raw: '', body: '', term};
     const client = await getClient();
     const searchUrl = this.searchTemplate!.getSearchUrl({term});
     console.log('@searching...', searchUrl);
@@ -90,18 +103,25 @@ export abstract class AbstractWebSearch extends Tool {
     const parser = new DOMParser();
     const dom = parser.parseFromString(req.data as string, 'text/html');
     this.searchTemplate!.preprocess(dom);
+    const body = dom.querySelector('body')?.innerText || '';
+    const { links, raw } = this.getLinksFromDocument(dom);
+    this.notify({message: 'Got search results...'});
+
+    return {links, raw, body, term}
+  }
+
+  private getLinksFromDocument(dom: Document): {raw: string, links: any[]} {
+    const links: ResultLink[] = [];
     const {
       searchResultSelector,
       searchResultLinkSelector,
       searchResultSnippetSelector
     } = this.searchTemplate!;
-    const body = dom.querySelector('body')?.innerText || '';
-    const links: ResultLink[] = [];
     const raw = [...dom.querySelectorAll(searchResultSelector)].map(a => {
       const anchor = a.querySelector(searchResultLinkSelector) as HTMLAnchorElement;
       const snippet = a.querySelector(searchResultSnippetSelector) as HTMLElement;
-      if (this.searchTemplate!.hrefAcceptable(anchor)) {
-        let href = this.searchTemplate!.parseHref(anchor);
+      const href = this.searchTemplate!.parseAndFilterAnchor(anchor);
+      if (href?.length) {
         links.push({
           url: href,
           text: anchor.innerText,
@@ -110,55 +130,74 @@ export abstract class AbstractWebSearch extends Tool {
       }
       return (a as HTMLElement).innerText.replace(/((\s){2,})+/g, '$2');
     }).join('\n').substring(0, 5000);
-    this.notify({message: 'Got search results...'});
-
-    return {links, raw, body}
+    return {raw, links};
   }
 
-  async checkResults(results: WebSearchResult): Promise<CheckedResult[]> {
+  private async checkResults(results: WebSearchResult): Promise<CheckedResult[]> {
     let attempt = 0;
     let evaluated;
     const sources: any[] = [];
-    const messages = this.originalData.messages;
-    console.log('@checkResults', results);
-    this.notify({message: 'Checking search results...'});
+    this.notify({message: `Checking search results for ${results.term}...`});
+    let batchStart = 0;
+    let batchSize = 3;
+    const { links, term } = results;
 
     attemptLoop:
     while (attempt < this.maxAttempts) {
-      const link = results.links[attempt];
-      const temp = await this.visit(link);
-      this.notify(`Reading ${link.text}...`);
-      evaluated = await this.evaluate({messages, data: temp.data});
-      console.log(attempt, JSON.stringify({evaluated}));
-      
-      console.debug(`@checkResults att ${attempt} evaluated:`, evaluated);
-      if (evaluated.usable) {
-        sources.push({
-          ...evaluated,
-          ...link,
-        });
-        if (sources.length >= this.maxSources) break attemptLoop;
+
+      const visited = await Promise.allSettled<Promise<VisitResult | VisitError>>(
+        links.slice(batchStart, batchSize).map(link => this.visit(link))
+      );
+
+      for (const visit of visited) {
+        if (visit.status === 'rejected') continue;
+        if (visit.hasOwnProperty('error')) {
+          console.log('@error', visit);
+          continue;
+        }
+
+        const link = visit.value as VisitResult;
+        this.notify({message: `Reading ${link.text}...`});
+        // Replace messages with a surrogate specific to this search query
+        const tempMessages = [{
+          role: 'user',
+          content: `I'm looking for data to satisfy the following search term: ${term}`
+        }];
+        try {
+          evaluated = await this.evaluate({
+            messages: tempMessages,
+            data: link.data
+          });
+          if (evaluated.usable) {
+            sources.push({
+              ...evaluated,
+              ...link,
+            });
+            if (sources.length >= this.maxSources) break attemptLoop;
+          }
+        }
+        catch(err: any) {
+          this.notify({level: 'danger', message: err.message})
+        }
+        attempt += batchSize;
+        batchStart += batchSize;
       }
-      
-      attempt++;
     }
 
-    console.log('@checkResults returning sources:', sources);
-    this.notify({message: 'WebSearch returning data...'});
+    this.notify({message: `Returning ${sources.length} result(s) for '${results.term}'...`});
+
     return sources;
   }
 
-  async visit({ url }: ResultLink): Promise<any> {
-    console.log('@visit...', url);
+  private async visit(resultItem: ResultLink): Promise<VisitResult | VisitError> {
+    const { url } = resultItem;
     const urlPreviewLength = 24;
     let urlPreview = url.substring(0, urlPreviewLength);
     if (url.length > urlPreviewLength) {
       urlPreview += '...';
     }
     this.notify({message: `Visiting ${urlPreview}`});
-    console.log({urlPreview})
-    //this.notify({message: `Visiting ${urlPreview}`});
-    if (!url) return;
+    if (!url) return {error: 'Unable to visit: no URL found'};
     const client = await getClient();
     const response = await client.get(url, {
       responseType: ResponseType.Text,
@@ -179,9 +218,8 @@ export abstract class AbstractWebSearch extends Tool {
       });
       
       const data = body.innerText.replace(/((\s){2,})+/g, '$2')
-      console.log(`body (${urlPreview}):`, data.length);
       this.notify({message: `Got data from ${urlPreview}`});
-      return {data: data.substring(0,2500)};
+      return {...resultItem, data: data.substring(0,2500)};
     }
     catch(err: any) {
       //this.notify({message: `Failed visiting ${urlPreview}`, level: 'danger'});
@@ -189,70 +227,36 @@ export abstract class AbstractWebSearch extends Tool {
     }
   }
 
-  async engage() {
-    const searchTerm = await this.getSearchTerm();
-    console.log('@WebSearch searchTerm:', searchTerm);
-    const searchResults = await this.searchTheWeb(searchTerm);
-    if (!searchResults.links?.length) throw new Error('No results found');
-    console.log(searchResults);
-    const data = await this.checkResults(searchResults);
-    console.log('WebSearch data', data);
+  private extractFinalData(results: PromiseSettledResult<CheckedResult[]>[]) {
+    const data = results
+      .filter(r => r.status !== 'rejected')
+      .map(r => {
+        const d = (r as any).value as CheckedResult[];
+        return d.map(d => ({
+          summary: d.summary,
+          snippet: d.snippet,
+          text: d.text,
+          url: d.url
+        }));
+      })
+      .reduce((prev, curr) => prev.concat(curr), []);
     return data;
+  }
+
+  public async engage() {
+    const searchTerms = await this.getSearchTerms();
+    console.log('@WebSearch searchTerm:', searchTerms);
+    const searches = searchTerms.map(term => this.searchTheWeb(term));
+    const searchResults = await Promise.allSettled(searches);
+    const allResults = await Promise.allSettled(
+      searchResults
+        .filter(r => r.status !== 'rejected')
+        .map(r => this.checkResults((r as any).value))
+    );
+    return this.extractFinalData(allResults);
   }
 
   disengage() {
     return ''
   }
-/*
-  // Alternate implementation with parallel websearches, but no real gain on 
-  // speed due to being unable to handle more than one evaluation at a time.
-
-  async checkResults(results: WebSearchResult): Promise<any> {
-    const maxAttempts = 2;
-    const maxSources = 2;
-    let attempt = 0;
-    let evaluated;
-    const sources: any[] = [];
-    const messages = this.originalData.messages;
-    console.log('@checkResults', results);
-    this.notify({message: 'Checking search results...'});
-    let batchStart = 0;
-    let batchSize = 2;
-
-    attemptLoop:
-    while (attempt < maxAttempts) {
-      const batch = results.links
-        .slice(batchStart, batchSize)
-        .map(link => this.visitAndEvaluate({ messages, link, sources }));
-      
-      console.log('@sources.length before', sources.length)
-      await Promise.allSettled(batch);
-      console.log('@sources.length after', sources.length)
-      console.log(sources);
-
-      if (sources.length >= maxSources) break attemptLoop;
-      
-      attempt += batchSize;
-      batchStart += batchSize;
-    }
-
-    console.log('@checkResults returning sources:', sources);
-    this.notify({message: 'WebSearch returning data...'});
-    return sources;
-  }
-
-  private async visitAndEvaluate({messages, link, sources}: {messages: any[], link: ResultLink, sources: any[]}) {
-    let evaluated;
-    const temp = await this.visit(link);
-      //console.debug(`@checkResults ${results.links[attempt].url}`)
-      //console.debug(`@checkResults`, result);
-    evaluated = await this.evaluate({messages, data: temp.data});
-    if (evaluated.usable) {
-      sources.push({
-        ...evaluated,
-        ...link,
-      });
-    }
-  }
-*/
 }

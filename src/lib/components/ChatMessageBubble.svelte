@@ -3,8 +3,9 @@
 	import { markedHighlight } from 'marked-highlight';
 	import hljs from 'highlight.js';
 	import DOMPurify from 'dompurify';
-	import { afterUpdate, onMount, tick } from 'svelte';
+	import { afterUpdate, onDestroy, onMount, tick } from 'svelte';
 	import CopyButton from './Buttons/ButtonCopy.svelte';
+	import { open } from '@tauri-apps/api/shell';
 
 	export let senderType = '';
 	export let text = '';
@@ -42,11 +43,22 @@
 	renderer.listitem = (body) => {
 		return `<li>${body}</li>`;
 	};
+	renderer.link = (href, title, text) => {
+		return `<a href=${href} title=${text} target="_blank" class="ext-link text-[#66a0de]">${text}</a>`
+	}
 
 	onMount(async () => {
 		sanitizedText = await sanitize(text || '');
 		await tick();
 		applyCodeClipper();
+		applyExternalLinkHandling();
+	});
+
+	onDestroy(() => {
+		const links = getLinks();
+		for (const link of links) {
+			(link as any).removeEventListener('click', linkOpener);
+		}
 	});
 
 	afterUpdate(async () => {
@@ -78,6 +90,26 @@
 				}
 			});
 		});
+	}
+
+	function getLinks() {
+		const links = root?.querySelectorAll('a.ext-link');
+		return links;
+	}
+	
+	function applyExternalLinkHandling() {
+		const links = getLinks();
+		for (const link of links) {
+			(link as any).addEventListener('click', linkOpener);
+		}
+	}
+
+	function linkOpener(e: any) {
+		e.preventDefault();
+		e.stopPropagation();
+		console.log('@linkOpener', e);
+		open(e.target.href);
+		return false;
 	}
 </script>
 

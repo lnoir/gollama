@@ -1,3 +1,4 @@
+import { progressNotifications } from '../../../../stores/conversation.store';
 import type { PromptParamMessage } from '../../../../types';
 import type { Tool } from '../tools/tool';
 import { Processor, type ProcessParams } from './processor'
@@ -38,13 +39,13 @@ Retrieved sources: [
   ${data.slice(-1).map(d => JSON.stringify(d)).join('\n')}
 ]
 Cite ALL relevant sources, including formatted links. Do not cite sources not present in the data. If there are no sources, do not cite any.`;
-    
+    console.log('@updatedContent', updatedContent);
     updatedMessages[lastUserMessageIndex].content = updatedContent;
     return updatedMessages;
   }
 
   async process(params: ProcessParams) {
-    console.log('@Formatter', params);
+    progressNotifications.set([]);
     this.originalData = params.originalData;
     const { messages } = params.originalData;
     const data =  params.results;
@@ -62,7 +63,6 @@ Cite ALL relevant sources, including formatted links. Do not cite sources not pr
       stream: true,
       format: undefined // Don't force JSON
     }, this.updater);
-    console.log('@Formatter result:', result);
     return result;
   }
 }

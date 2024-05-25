@@ -38,11 +38,14 @@ export abstract class SearchTemplate {
     console.log('No preprocess defined');
   };
 
-  public hrefAcceptable(anchor: HTMLAnchorElement) {
-    return true;
+  public parseAndFilterAnchor(anchor: HTMLAnchorElement): string {
+    const parsedHref = this.parseAnchor(anchor);
+    const url = new URL(parsedHref);
+    if (/\.([a-z]+){2,4}$/i.test(url.pathname)) return '';
+    return parsedHref;
   }
 
-  public parseHref(anchor: HTMLAnchorElement) {
+  public parseAnchor(anchor: HTMLAnchorElement) {
     return anchor.href;
   }
 }

@@ -10,6 +10,7 @@ import { ChatResponse } from './tools/chat-response';
 import { NewsSearch } from './tools/web-search/news-search';
 import type { Tool } from './tools/tool';
 import { WebSearch } from './tools/web-search/web-search';
+import { progressNotifications, type ProgressMessage } from '../../../stores/conversation.store';
 
 export interface EvaluationResult {
   usable: boolean;
@@ -184,12 +185,29 @@ export class Retriever implements PromptHandler {
     return JSON.parse(result);
   }
 
-  notify({title, message, level}: {message: string, title?: string, level?: AppLevelType}) {
-    const opts: AppMessageOptions = {
-      title,
-      message,
-      level: level || 'info'
-    }
-    pushMessage(opts);
+  notify({title, source, message, level}: ProgressMessage) {
+    console.log('@notify', level, message);
+    progressNotifications.update(notifications => {
+      const n = {
+        id: Number((Math.random() * 100000).toFixed(5)),
+        title,
+        source,
+        message,
+        level: level || 'info',
+        // Self-removing
+        timeout: setTimeout(() =>{
+          progressNotifications.update(notes => {
+            const nIndex = notes.findIndex(note => note.id === n.id);
+            return [...notes].splice(nIndex, 1);
+          });
+        }, 5000)
+      };
+      notifications.push(n);
+      return notifications
+    });
+  }
+
+  clearNotifications() {
+    progressNotifications.set([]);
   }
 }

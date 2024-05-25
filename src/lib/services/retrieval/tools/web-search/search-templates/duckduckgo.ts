@@ -8,14 +8,16 @@ export class DuckDuckGoTemplate extends SearchTemplate {
   searchResultPeriodSelector = 'tf={{timeFrame}}';
   searchReferrer = 'https//html.duckduckgo.com/html/';
 
-  public hrefAcceptable(anchor: HTMLAnchorElement): boolean {
-    return !anchor.search.includes('ad_domain'); // skip ad links
+  public parseAndFilterAnchor(anchor: HTMLAnchorElement): string {
+    const href = super.parseAndFilterAnchor(anchor);
+    return !anchor.search?.includes('ad_domain') ? href : ''; // skip ad links
   }
   
-  public parseHref(anchor: HTMLAnchorElement) {
-    let href = anchor.href;
+  public parseAnchor(anchor: HTMLAnchorElement) {
+    super.parseAnchor(anchor);
+    let href = super.parseAnchor(anchor);
     if (href.includes('duckduckgo.com')) {
-      href = decodeURIComponent(anchor.search.split('&')[0].replace('?uddg=', ''));
+      href = decodeURIComponent(anchor.search?.split('&')[0].replace('?uddg=', ''));
     }
     return href;
   }
