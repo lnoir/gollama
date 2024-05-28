@@ -6,6 +6,7 @@ import type {
 	Model,
 	SettingsMap,
 } from '../types';
+import type { WorkerService } from '../lib/services/worker.service';
 
 export const messageQueue: Writable<AppModalOptions[]> = writable([]);
 export const dialogQueue: Writable<AppModalOptions[]> = writable([]);
@@ -19,6 +20,7 @@ export const selectedModel = writable<string>();
 export const settings = writable<SettingsMap>();
 export const menuOpen = writable<boolean>(true);
 export const settingsOpen = writable<boolean>(false);
+export const workerServiceInstance = writable<WorkerService>();
 
 export const pushMessage = (data: AppMessageOptions) => {
 	pushModalItem(data);

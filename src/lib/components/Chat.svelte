@@ -18,8 +18,6 @@
 	import CodeExecutionResult from './CodeExecutionResult.svelte';
 	import ChatInput from './ChatInput.svelte';
 	import { Retriever } from '../services/retrieval/retriever';
-	import ProgressMessage from './ProgressMessageItem.svelte';
-	import { fade, slide } from 'svelte/transition';
 	import ProgressMessages from './ProgressMessages.svelte';
 
 	export let conversationId = 0;

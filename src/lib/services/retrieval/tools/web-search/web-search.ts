@@ -1,4 +1,5 @@
 import { AbstractWebSearch } from './abstract-web-search';
+import { AbstractWebSearch2 } from './abstract-web-search.2';
 import { DuckDuckGoTemplate } from './search-templates/duckduckgo';
 
 

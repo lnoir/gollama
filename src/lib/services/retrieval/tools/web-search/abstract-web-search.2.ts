@@ -3,6 +3,14 @@ import { Tool, type ToolConfigureParams } from '../tool'
 import { getClient, ResponseType } from '@tauri-apps/api/http';
 import type { SearchTemplate } from './search-templates/search-template';
 import type { EvaluationResult } from '../../retriever';
+import type { WorkerService } from '../../../worker.service';
+import { get } from 'svelte/store';
+import { workerServiceInstance } from '../../../../../stores/app.store';
+import { getLogger } from '../../../../helpers';
+import { db } from '$services/db.service';
+import type { WorkerMessage } from '../../worker';
+
+const log = getLogger('WebSearch');
 
 interface WebSearchConfigureParams extends ToolConfigureParams {
   getPromptResponse: (data: PromptParams) => Promise<any>;
@@ -24,7 +32,8 @@ interface WebSearchResult {
 }
 
 interface VisitResult extends ResultLink {
-  data: string
+  data: string;
+  truncated: string;
 }
 
 interface VisitError {
@@ -33,7 +42,7 @@ interface VisitError {
 
 interface CheckedResult extends ResultLink, EvaluationResult {}
 
-export abstract class AbstractWebSearch extends Tool {
+export abstract class AbstractWebSearch2 extends Tool {
   name = 'web-search';
   description = 'search the web for relevant data';
   useWhen = 'query specifically asks about real-time, current or future data';
@@ -45,6 +54,7 @@ export abstract class AbstractWebSearch extends Tool {
   maxAttempts = 2;
   maxSources = 3;
   searchTemplate?: SearchTemplate;
+  workerService?: WorkerService;
   
   public configure(data: WebSearchConfigureParams) {
     if (!data.getPromptResponse) throw new Error('WebSearch needs access to prompt LLM!');
@@ -82,7 +92,7 @@ Return only the JSON. Include no other text or commentary.`;
         top_p: 0.1
       },
       json: true,
-      stream: false
+      steram: false
     });
     return JSON.parse(result)?.keywords;
   }
@@ -136,64 +146,69 @@ Return only the JSON. Include no other text or commentary.`;
         }
       }
       return (a as HTMLElement).innerText.replace(/((\s){2,})+/g, '$2');
-    }).join('\n').substring(0, 5000);
+    }).join('\n');
     return {raw, links};
   }
 
-  private async checkResults(results: WebSearchResult): Promise<CheckedResult[]> {
-    let attempt = 0;
-    let evaluated;
+  private async gatherResults(results: WebSearchResult): Promise<CheckedResult[]> {
     const sources: any[] = [];
-    this.notify({message: `Checking search results for ${results.term}...`});
+    const { links, term } = results;
+    const maxResults = 5;
     let batchStart = 0;
     let batchSize = 3;
-    const { links, term } = results;
+    const workerService = get(workerServiceInstance);
 
-    attemptLoop:
-    while (attempt < this.maxAttempts) {
-
+    while (maxResults > sources.length && links.length - 1 > batchStart) {
       const visited = await Promise.allSettled<Promise<VisitResult | VisitError>>(
         links.slice(batchStart, batchSize).map(link => this.visit(link))
       );
-
       for (const visit of visited) {
         if (visit.status === 'rejected') continue;
         if (visit.hasOwnProperty('error')) {
-          console.log('@error', visit);
+          console.error('@error', visit);
           continue;
         }
-
         const link = visit.value as VisitResult;
-        this.notify({message: `Reading ${link.text}...`});
-        // Replace messages with a surrogate specific to this search query
-        const tempMessages = [{
-          role: 'user',
-          content: `I'm looking for data to satisfy the following search term: ${term}`
-        }];
-        try {
-          evaluated = await this.evaluate({
-            messages: tempMessages,
-            data: link.data
-          });
-          if (evaluated.usable) {
-            sources.push({
-              ...evaluated,
-              ...link,
-            });
-            if (sources.length >= this.maxSources) break attemptLoop;
-          }
-        }
-        catch(err: any) {
-          this.notify({level: 'danger', message: err.message})
-        }
-        attempt += batchSize;
-        batchStart += batchSize;
+        if (link.data.length < 100) continue; // Not enough content
+        sources.push({...link});
+      }
+      batchStart += batchSize;
+    }
+    try {
+      console.warn('@PRE sources', sources);
+      await db.addWebResults(sources.map(s => ({id: s.url, content: s.data})));
+      const embedResult = await workerService.embed(sources);
+      console.warn("@EMBED_RESULT", embedResult);
+    }
+    catch(err) {
+      console.error('Unable to embed:' , sources, err);
+    }
+    return sources;
+  }
+
+  private async query(terms: string[]) {
+    console.log('@QUERYING...', terms)
+    const workerService = get(workerServiceInstance);
+    let allResults: any[] = [];
+    try {
+        for (const term of terms) {
+        const workerResults = await workerService.query(term) as WorkerMessage;
+        console.log('@workerResults', workerResults)
+        const ids = workerResults.content.map((r: any) => r[0].metadata.url);
+        console.log('@workerResults ids', ids);
+        const dbResults = await db.getWebResults(ids);
+        console.warn('@DB_RESULTS', dbResults);
+        allResults = allResults.concat(dbResults);
       }
     }
-
-    this.notify({message: `Returning ${sources.length} result(s) for '${results.term}'...`});
-
-    return sources;
+    catch(err) {
+      throw err;
+    }
+    return allResults.map(r => {
+      // Hard trim
+      r.content = r.content.substring(0, 2500);
+      return r;
+    });
   }
 
   private async visit(resultItem: ResultLink): Promise<VisitResult | VisitError> {
@@ -219,14 +234,19 @@ Return only the JSON. Include no other text or commentary.`;
     try {
       const parser = new DOMParser()
       const dom = parser.parseFromString(response.data as string, 'text/html');
-      const body = dom.querySelector('body') as HTMLBodyElement;
+      const body = (
+        dom.querySelector('main') ||
+        dom.querySelector('#main') ||
+        dom.querySelector('#content') ||
+        dom.querySelector('body')
+      ) as HTMLBodyElement;
       [...body.querySelectorAll('head, script, style, image, svg')].forEach(el => {
         el.parentNode?.removeChild(el);
       });
       
-      const data = body.innerText.replace(/((\s){2,})+/g, '$2')
+      const data = body.innerText.replace(/((\s){2,})+/g, '$2');
       this.notify({message: `Got data from ${urlPreview}`});
-      return {...resultItem, data: data.substring(0,2500)};
+      return {...resultItem, data: data, truncated: data.substring(0,2500)};
     }
     catch(err: any) {
       //this.notify({message: `Failed visiting ${urlPreview}`, level: 'danger'});
@@ -234,33 +254,20 @@ Return only the JSON. Include no other text or commentary.`;
     }
   }
 
-  private extractFinalData(results: PromiseSettledResult<CheckedResult[]>[]) {
-    const data = results
-      .filter(r => r.status !== 'rejected')
-      .map(r => {
-        const d = (r as any).value as CheckedResult[];
-        return d.map(d => ({
-          summary: d.summary,
-          snippet: d.snippet,
-          text: d.text,
-          url: d.url
-        }));
-      })
-      .reduce((prev, curr) => prev.concat(curr), []);
-    return data;
-  }
-
   public async engage() {
     const searchTerms = await this.getSearchTerms();
     console.log('@WebSearch searchTerm:', searchTerms);
     const searches = searchTerms.map(term => this.searchTheWeb(term));
     const searchResults = await Promise.allSettled(searches);
-    const allResults = await Promise.allSettled(
+    console.log("@searchResults", searchResults)
+    await Promise.allSettled(
       searchResults
         .filter(r => r.status !== 'rejected')
-        .map(r => this.checkResults((r as any).value))
+        .map(r => this.gatherResults((r as any).value))
     );
-    return this.extractFinalData(allResults);
+    const queryResults = await this.query(searchTerms);
+    console.warn("::: ??? ::: RESULTS", queryResults);
+    return queryResults; //this.extractFinalData(queryResults as any);
   }
 
   disengage() {

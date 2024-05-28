@@ -121,6 +121,15 @@ export class ChatDb {
 			totalPages,
 		};*/
 	}
+
+	async addWebResults(data: any[]) {
+		console.warn('@addWebResults', data);
+		await this.db.addWebResults(data);
+	}
+
+	async getWebResults(ids: string[]) {
+		return this.db.getWebResults(ids);
+	}
 }
 
 export interface QueryDatabaseParams {

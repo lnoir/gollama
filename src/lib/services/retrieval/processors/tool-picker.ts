@@ -55,7 +55,7 @@ You MUST ONLY ever respond in this format: {"tool":"tool-name"}
     promptParams.messages = [
       { role: 'system', content: this.systemPrompt },
       ...data.originalData.messages,
-      { role: 'user', content: 'Return the tool rto use to respond. Only output the JSON and nothing else.'}
+      { role: 'user', content: 'Return the tool to use to respond. Only output the unformatted JSON and nothing else.'}
     ];
     console.log('@ToolPicker', promptParams, this.tools);
     const result = await this.getPromptResponse(promptParams);

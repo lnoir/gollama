@@ -7,13 +7,15 @@
 	import { Modal, initializeStores, type ModalComponent, Toast, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
 	import ChatSelector from '$components/ChatSelector.svelte';
 	import TopBar from '$components/TopBar.svelte';
-	import { onMount } from 'svelte';
-	import { dialogQueue, menuOpen, messageQueue, settingsOpen } from '../stores/app.store';
+	import { onMount, setContext } from 'svelte';
+	import { dialogQueue, menuOpen, messageQueue, settingsOpen, workerServiceInstance } from '../stores/app.store';
 	import { showModal, showToast } from '$lib/helpers';
 	import type { AppDialogOptions, AppMessageOptions } from '../types';
 	import SettingsPanel from '$components/SettingsPanel.svelte';
+	import { workerService } from '../lib/services/worker.service';
 
 	import { appWindow } from '@tauri-apps/api/window';
+	import { get } from 'svelte/store';
 
 	const modalRegistry: Record<string, ModalComponent> = {
 		settings: { ref: Settings }
@@ -24,7 +26,13 @@
 	let modalStore = getModalStore();
 	let toastStore = getToastStore();
 
+	// Provide the worker
+
 	onMount(async () => {
+		// Vector store service worker
+		if (!get(workerServiceInstance)) {
+			workerServiceInstance.set(workerService);
+		}
 		await appWindow.setTitle(`gollama ${import.meta.env.DEV ? ' [DEV]' : ''}`);
 		messageQueue.subscribe((messages) => {
 			if (!messages.length) return;

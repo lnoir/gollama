@@ -99,6 +99,7 @@
 	
 	function applyExternalLinkHandling() {
 		const links = getLinks();
+		if (!links) return;
 		for (const link of links) {
 			(link as any).addEventListener('click', linkOpener);
 		}

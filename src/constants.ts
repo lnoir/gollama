@@ -45,4 +45,9 @@ export const DB_CREATE_STATEMENTS = [
   )`,
   `CREATE VIRTUAL TABLE IF NOT EXISTS ft_conversations USING FTS5(title, conversationId)`,
   `CREATE VIRTUAL TABLE IF NOT EXISTS ft_messages USING FTS5(text, messageId, conversationId)`,
+  `CREATE TABLE IF NOT EXISTS web_results (
+    id TEXT UNIQUE PRIMARY KEY,
+    content TEXT,
+    term TEXT
+  )`
 ];

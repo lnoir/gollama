@@ -40,7 +40,7 @@ export class SQLiteAdapter extends BaseAdapter {
     const res = await this.db.execute(sql, values);
     trace(`@insert ${JSON.stringify(res)}`);
 		this.bumpUpdate();
-		return res.lastInsertId; 
+		return res.lastInsertId;
   }
 
   async update(table: string, id: number, data: any) {
@@ -194,6 +194,23 @@ export class SQLiteAdapter extends BaseAdapter {
 
   async queryDatabase(data: any) {
     return this.db?.select(data.query);
+  }
+
+  async addWebResults(data: any[]) {
+    for (const d of data) {
+      const { columns, placeholders, values } = this.prepareInsert(d);
+      const sql = `INSERT OR REPLACE INTO web_results (${columns}) VALUES (${placeholders})`;
+      const res = await this.db.execute(sql, values);
+      trace(`@insert ${JSON.stringify(res)}`);
+    }
+    this.bumpUpdate();
+  }
+
+  async getWebResults(ids: string[]) {
+    const stringIds = ids.map(id => `'${id}'`).join(',');
+    const sql = `SELECT * FROM web_results WHERE id IN(${stringIds})`;
+    console.log('@SQL', sql);
+    return this.db.select(sql);
   }
 }
 

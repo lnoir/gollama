@@ -1,5 +1,4 @@
-import { pushMessage } from '../../../stores/app.store';
-import type { AppLevelType, AppMessageOptions, PromptParams } from '../../../types';
+import type { PromptParams } from '../../../types';
 import { getOllamaResult } from '../../helpers';
 import type { PromptHandler } from '../prompt.handler';
 import { Formatter } from './processors/formatter';
@@ -100,7 +99,7 @@ export class Retriever implements PromptHandler {
     }
 
     while (this.nextIndex < this.chain.length) {
-      console.log(`In chain: ${this.chain[this.nextIndex].constructor.name}`)
+      // console.log(`In chain: ${this.chain[this.nextIndex].constructor.name}`)
       const result = await this.chain[this.nextIndex].process({
         originalData: data,
         results,
@@ -113,7 +112,7 @@ export class Retriever implements PromptHandler {
         break;
       }
 
-      console.log(`@nextData from ${this.chain[this.nextIndex].constructor.name}`, result);
+      // console.log(`@nextData from ${this.chain[this.nextIndex].constructor.name}`, result);
       results.push(result);
       ++this.nextIndex;
     }
@@ -133,10 +132,10 @@ export class Retriever implements PromptHandler {
     }
     catch (err: any) {
       // @TODO: What are we returning again?
-      return {error: err.message}
+      return {error: err}
     }
-    console.log('Duration: %ds', (this.endTime - this.startTime) / 1000);
-    console.log('Results', result);
+    console.warn('Duration: %ds', (this.endTime - this.startTime) / 1000);
+    console.warn('Results', result);
     return Promise.resolve(result.slice(-1)[0]);
   }
 

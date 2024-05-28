@@ -2,6 +2,7 @@ import type { ModalStore, ToastStore } from '@skeletonlabs/skeleton';
 import type { AppDialogOptions, AppMessageOptions, ParsedPromptResponse } from '../types';
 import { menuOverlapping } from '../stores/app.store';
 import { info } from 'tauri-plugin-log-api';
+import { Logger } from 'tslog';
 
 /**
  * Displays stated component in a modal
@@ -220,4 +221,12 @@ export async function getOllamaResult(result: any, updater?: any) {
 	const { text } = parsed;
 	console.log({text, parsed});
 	return parsed;
+}
+
+export function getLogger(name: string) {
+	return new Logger({
+		name,
+		minLevel: import.meta.env.DEV ? 3 : 5,
+		type: 'json'
+	});
 }
