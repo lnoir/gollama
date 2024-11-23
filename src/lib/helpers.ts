@@ -217,7 +217,6 @@ export function uint8ArrayToBase64(uint8Array: Uint8Array): string {
 export async function getOllamaResult(result: any, updater?: any) {
 	if (!result) throw new Error('Result is empty!');
 	const parsed = await parseChatResponseStream(result, updater);
-	console.log('@getOllamaResultText', {parsed});
 	const { text } = parsed;
 	console.log({text, parsed});
 	return parsed;

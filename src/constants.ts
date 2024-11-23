@@ -1,4 +1,5 @@
-export const DB_FILENAME = 'gollama.db';
+const dev = import.meta.env.DEV ? '.dev' : '';
+export const DB_FILENAME = `gollama${dev}.db`;
 
 export const DB_CREATE_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS conversations (
@@ -19,6 +20,7 @@ export const DB_CREATE_STATEMENTS = [
     senderType TEXT NOT NULL,
     parentMessageId INTEGER,
     text TEXT NOT NULL,
+    model TEXT,
     time DATE NOT NULL,
     eval_count INTEGER,
     eval_duration FLOAT,

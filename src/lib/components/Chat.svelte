@@ -155,6 +155,10 @@
 			content: m.text
 		}));
 
+		if (settings.system) {
+			messages.unshift({role: 'system', content: settings.system});
+		}
+
 		if (images?.length) {
 			messages[messages.length - 1].images = images;
 		}

@@ -45,6 +45,7 @@ export abstract class AbstractWebSearch extends Tool {
   maxAttempts = 2;
   maxSources = 3;
   searchTemplate?: SearchTemplate;
+  model = 'llama:latest'
   
   public configure(data: WebSearchConfigureParams) {
     if (!data.getPromptResponse) throw new Error('WebSearch needs access to prompt LLM!');
@@ -65,7 +66,7 @@ If only one term is necessary, return an array containing one term. Return as fe
 Ensure each term is specific to the query. Use at least two words in each term to ensure specificity. Return no more than three keyword terms.
 Return only the JSON. Include no other text or commentary.`;
     const result = await this.getPromptResponse({
-      model: 'llama3:latest', // @TODO: remove hard-coded model
+      model: this.model,
       messages: [
         {
           role: 'system',

@@ -38,7 +38,12 @@ class OllamaService implements PromptHandler {
 
 	async sendPrompt(data: PromptParams, requestOptions?: RequestOptions) {
 		const defaults = await db.getSettingsMap();
+		console.log('@defaults', defaults);
+		
 		const { prompt, model, context, messages, stream, options, format } = data;
+		if (defaults.system) {
+			messages.unshift({role: 'system', content: defaults.system});
+		}
 		const body = {
 			prompt,
 			model,

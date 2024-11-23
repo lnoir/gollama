@@ -102,7 +102,6 @@ export class WorkerService {
     return new Promise((resolve, reject) => {
       let active = false;
       this.ready.subscribe(ready => {
-        log.info({ready, active, ...message});
         if (!ready || active) return;
         active = true;
         try {

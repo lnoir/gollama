@@ -98,6 +98,15 @@
 				{/each}
 			</select>
 		</div>
+    
+		<div class="mt-4">
+      <label for="system" class="block text-sm font-medium text-gray-300">System Message</label>
+      <textarea 
+				id="system"
+				class="mt-1 p-2 w-full border rounded-md"
+				bind:value={formValues.system}
+				on:change={updateSetting}></textarea>
+    </div>
 
 		<!-- Don't need these for now
     <div class="mt-4">

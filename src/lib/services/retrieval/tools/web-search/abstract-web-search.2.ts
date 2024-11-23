@@ -40,7 +40,9 @@ interface VisitError {
   error: string;
 }
 
-interface CheckedResult extends ResultLink, EvaluationResult {}
+interface CheckedResult extends ResultLink, EvaluationResult {
+  summary: string;
+}
 
 export abstract class AbstractWebSearch2 extends Tool {
   name = 'web-search';
@@ -55,6 +57,8 @@ export abstract class AbstractWebSearch2 extends Tool {
   maxSources = 3;
   searchTemplate?: SearchTemplate;
   workerService?: WorkerService;
+  model = 'llama3:latest';
+  visited = new Set();
   
   public configure(data: WebSearchConfigureParams) {
     if (!data.getPromptResponse) throw new Error('WebSearch needs access to prompt LLM!');
@@ -69,13 +73,14 @@ export abstract class AbstractWebSearch2 extends Tool {
   
   private async getSearchTerms(): Promise<string[]> {
     const systemPrompt = 
-`Your job pick the most concise but specific set of keywords that should be used to search the web in order to answer the user's query.
+`Your job is to translate the user query into keyword search terms that will provide a complete answer for the user.
+Include precisely ONE keyword term for each piece of information required to answer the user.
 Return a JSON object containing the keywords in the following format: {"keywords": ["search term one", "term two", "a third keyword term"]}
 If only one term is necessary, return an array containing one term. Return as few keywords as possible, but do not use single-word keywords.
 Ensure each term is specific to the query. Use at least two words in each term to ensure specificity. Return no more than three keyword terms.
 Return only the JSON. Include no other text or commentary.`;
     const result = await this.getPromptResponse({
-      model: 'llama3:latest', // @TODO: remove hard-coded model
+      model: this.model,
       messages: [
         {
           role: 'system',
@@ -84,12 +89,13 @@ Return only the JSON. Include no other text or commentary.`;
         ...this.originalData.messages,
         {
           role: 'user',
-          content: `Provide the search term or terms I should use to find this information on the web. Return JSON in the format: {"keywords": ["first search term", "second term", "..."]}\nReturn no other text or commentary.`
+          content: `Provide the search term I should use to find this information on the web. Return JSON in the format: {"keywords": ["search term", "..."]}\nReturn no other text or commentary.`
         }
       ],
       options: {
         top_k: 10,
-        top_p: 0.1
+        top_p: 0.1,
+        temperature: 0.2
       },
       json: true,
       steram: false
@@ -157,11 +163,13 @@ Return only the JSON. Include no other text or commentary.`;
     let batchStart = 0;
     let batchSize = 3;
     const workerService = get(workerServiceInstance);
+    this.notify({message: 'Visiting links...'});
 
     while (maxResults > sources.length && links.length - 1 > batchStart) {
       const visited = await Promise.allSettled<Promise<VisitResult | VisitError>>(
         links.slice(batchStart, batchSize).map(link => this.visit(link))
       );
+
       for (const visit of visited) {
         if (visit.status === 'rejected') continue;
         if (visit.hasOwnProperty('error')) {
@@ -169,10 +177,26 @@ Return only the JSON. Include no other text or commentary.`;
           continue;
         }
         const link = visit.value as VisitResult;
+        console.log('@link (%d chars)', link.data.length, link);
         if (link.data.length < 100) continue; // Not enough content
-        sources.push({...link});
+        try {
+          this.notify({message: `Reading ${link.text}...`});
+          const evaluation = await this.evaluate({
+            data: link.data, messages: this.originalData.messages
+          });
+          console.warn('@EVALUATION', evaluation)
+          log.warn(evaluation);
+          if (evaluation.usable) {
+            this.notify({message: `Adding source: ${link.text}`});
+            sources.push({...link, summary: evaluation.summary});
+          }
+        }
+        catch(err) {
+          console.error(err);
+        }
       }
       batchStart += batchSize;
+      console.warn({batchStart, results});
     }
     try {
       console.warn('@PRE sources', sources);
@@ -189,37 +213,48 @@ Return only the JSON. Include no other text or commentary.`;
   private async query(terms: string[]) {
     console.log('@QUERYING...', terms)
     const workerService = get(workerServiceInstance);
-    let allResults: any[] = [];
+    let allResults: Map<string, any> = new Map();
     try {
-        for (const term of terms) {
+      for (const term of terms) {
         const workerResults = await workerService.query(term) as WorkerMessage;
         console.log('@workerResults', workerResults)
-        const ids = workerResults.content.map((r: any) => r[0].metadata.url);
+        /*const ids = workerResults.content.map((r: any) => r[0].metadata.url);
         console.log('@workerResults ids', ids);
         const dbResults = await db.getWebResults(ids);
         console.warn('@DB_RESULTS', dbResults);
         allResults = allResults.concat(dbResults);
+        */
+       
+        workerResults.content.forEach((r:any) => {
+          if (allResults.has(r[0].metadata.url)) return;
+          allResults.set(r[0].metadata.url, {
+            content: r[0].pageContent,
+            ...r[0].metadata
+          });
+        });
       }
     }
     catch(err) {
       throw err;
     }
-    return allResults.map(r => {
-      // Hard trim
-      r.content = r.content.substring(0, 2500);
-      return r;
-    });
+    log.warn([...allResults.values()]);
+    return [...allResults.values()];
   }
 
   private async visit(resultItem: ResultLink): Promise<VisitResult | VisitError> {
     const { url } = resultItem;
+    if (this.visited.has(url)) return {error: 'Already visited'};
+    this.visited.add(url);
     const urlPreviewLength = 24;
     let urlPreview = url.substring(0, urlPreviewLength);
+    
     if (url.length > urlPreviewLength) {
       urlPreview += '...';
     }
-    this.notify({message: `Visiting ${urlPreview}`});
+    
     if (!url) return {error: 'Unable to visit: no URL found'};
+
+    this.notify({message: `Visiting ${urlPreview}`});
     const client = await getClient();
     const response = await client.get(url, {
       responseType: ResponseType.Text,

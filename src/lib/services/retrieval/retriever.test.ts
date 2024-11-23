@@ -72,7 +72,7 @@ describe('Retriever', () => {
         onSource: () => {},
         results: [],
         originalData: {
-          model: 'phi-3:latest',
+          model: 'phi3:latest',
           messages: [{
             role: 'user',
             content: 'When is the next full solar eclipse'

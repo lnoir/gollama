@@ -3,7 +3,7 @@ import { AbstractWebSearch2 } from './abstract-web-search.2';
 import { DuckDuckGoTemplate } from './search-templates/duckduckgo';
 
 
-export class WebSearch extends AbstractWebSearch {
+export class WebSearch extends AbstractWebSearch2 {
   name = 'web-search';
   description = 'search the web for relevant data';
   useWhen = 'query specifically asks about real-time, current or future data, or a web search';

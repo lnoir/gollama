@@ -175,6 +175,7 @@ export interface SettingsMap {
 	options: ModelOptions;
 	template?: string;
 	stream?: boolean;
+	system?: string;
 	[key: string]: DbValue | object;
 };
 

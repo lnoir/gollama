@@ -1,5 +1,5 @@
 import type { PromptParams } from '../../../types';
-import { getOllamaResult } from '../../helpers';
+import { getLogger, getOllamaResult } from '../../helpers';
 import type { PromptHandler } from '../prompt.handler';
 import { Formatter } from './processors/formatter';
 import type { Processor } from './processors/processor';
@@ -10,6 +10,9 @@ import { NewsSearch } from './tools/web-search/news-search';
 import type { Tool } from './tools/tool';
 import { WebSearch } from './tools/web-search/web-search';
 import { progressNotifications, type ProgressMessage } from '../../../stores/conversation.store';
+
+
+const log = getLogger('Retriever');
 
 export interface EvaluationResult {
   usable: boolean;
@@ -140,17 +143,21 @@ export class Retriever implements PromptHandler {
   }
 
   async evaluate(params: any): Promise<EvaluationResult> {
-    const { messages, data } = params;
+    const { messages, data, model } = params;
+
+    log.warn(JSON.stringify(messages));
+    console.log('Data length: %d', data.length);
+
     const systemPrompt = `
-    Based on the conversation, does the data provided contain information to help answer the user's question?
-    Provide a verdict of true or false, responding with a simple JSON object with the following format:
+    Your job is to determine if the data provided data contains information to help answer the user.
+    Provide a verdict of true or false, responding with a simple JSON object in the following format:
     {
       "usable": boolean,
       "reason": "a single sentence explaining why the this verdict was given",
-      "summary":"No more than 3 sentences summarising the relevant data"
-    }`;
-
-    const result = await this.getPromptResponse({
+      "summary":"concise, human-friendly summary of only the specific data that directly answers the user, in no more than 42 words."
+    }
+    Stick specifically to the user's query within the context of the conversation. Do not include any other text or commentary.`;
+    const promptParams: PromptParams = {
       model: this.model,
       format: 'json',
       messages: [
@@ -161,25 +168,20 @@ export class Retriever implements PromptHandler {
         ...messages,
         {
           role: 'user',
-          content: `
-          Based on the conversation, does the data provided contain information to help answer the user message above?
-    Provide a verdict of true or false, responding with a simple JSON object with the following format:
-    {
-      "usable": boolean,
-      "reason": "a single sentence explaining why the this verdict was given",
-      "summary":"key information to answer user, in no more than 42 words"
-    }`
+          content: `This is the data:\n${JSON.stringify(data)}`
         },
-        {
-          role: 'user',
-          content: `This is the data:\n${data}`
-        } 
       ],
       options: {
-        temperature: 0.1
+        top_p: 0.1,
+        top_k: 10,
+        temperature: 0.1,
+        num_ctx: 20720,
       },
       stream: false,
-    });
+    }
+    log.warn(promptParams);
+    const result = await this.getPromptResponse(promptParams);
+    log.warn(result);
     console.log('@evaluate', result);
     return JSON.parse(result);
   }

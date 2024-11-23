@@ -28,7 +28,7 @@ export interface WorkerMessage {
 const voyClient = new VoyClient();
 const embeddings = new OllamaEmbeddings({
   model: 'mxbai-embed-large',
-  maxConcurrency: 5
+  maxConcurrency: 3
 });
 const store = new VoyVectorStore(voyClient, embeddings);
 const initStore = async (data: any) => {
@@ -42,7 +42,7 @@ const writeToStore = async (data: WorkerMessage) => {
   const time = new Date().toISOString();
   const docs = (Array.isArray(docsToWrite) ? docsToWrite : [docsToWrite])
     .map(r => new Document({
-      pageContent: r.truncated,
+      pageContent: r.summary,
       metadata: {
         url: r.url,
         snippet: r.snippet,
@@ -52,10 +52,10 @@ const writeToStore = async (data: WorkerMessage) => {
       }
     })
   );
-  const splitter = new RecursiveCharacterTextSplitter();
-  const splitDocs = await splitter.splitDocuments(docs);
+  //const splitter = new RecursiveCharacterTextSplitter();
+  //const splitDocs = await splitter.splitDocuments(docs);
   
-  await store.addDocuments(splitDocs);
+  await store.addDocuments(docs);
   console.log('index size:', voyClient.size());
 
   const message: WorkerMessage = {
