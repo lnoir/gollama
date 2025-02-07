@@ -3,11 +3,13 @@
 	import ButtonCopy from './Buttons/ButtonCopy.svelte';
 	import ButtonDelete from './Buttons/ButtonDelete.svelte';
 	import ButtonResend from './Buttons/ButtonResend.svelte';
-	import { getContext } from 'svelte';
+	import { afterUpdate, getContext } from 'svelte';
 	import { get } from 'svelte/store';
 	import { selectedModel } from '../../stores/app.store';
 	import type { HydratedMessage } from '../../types';
 	import ChatImage from './ChatImage.svelte';
+	import { extractThinking } from '../helpers';
+	import ChatBubbleNotes from './ChatBubbleNotes.svelte';
 
 	export let id = 0;
 	export let senderType = '';
@@ -26,11 +28,24 @@
 		human: 'bg-slate-900 border-b-slate-800',
 		ai: 'bg-zinc-900 border-b-zinc-800'
 	};
+	let thoughts = '';
+	let content = '';
+
+	afterUpdate(() => {
+		const { thought, answer } = extractThinking(text);
+		thoughts = thought;
+		content = answer;
+	});
 </script>
 
 <div class="w-full mt-4 relative group" data-message-id={id}>
 	<div class="relative">
-		<ChatMessageBubble {senderType} {text} {parse}>
+		<ChatMessageBubble text={content} {senderType} {parse}>
+			<svelte:fragment slot="notes">
+				{#if thoughts}
+				<ChatBubbleNotes text={thoughts} title="{!content ? "Thinking..." : "Thoughts"}" />
+				{/if}
+			</svelte:fragment>
 			<svelte:fragment slot="images">
 				{#if message?.images?.length}
 					{#each message.images as image}

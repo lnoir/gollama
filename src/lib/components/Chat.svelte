@@ -10,7 +10,7 @@
 	import { db } from '$services/db.service';
 	import { ProgressRadial } from '@skeletonlabs/skeleton';
 	import Conversation from './Conversation.svelte';
-	import { nanosecondsToSeconds, parseChatResponseStream, uint8ArrayToBase64 } from '$lib/helpers';
+	import { extractThinking, nanosecondsToSeconds, parseChatResponseStream, uint8ArrayToBase64 } from '$lib/helpers';
 	import { availableModels, dbReady, pushMessage, selectedModel } from '../../stores/app.store';
 	import ButtonScrollBottom from './Buttons/ButtonScrollBottom.svelte';
 	import { onNavigate } from '$app/navigation';
@@ -72,7 +72,7 @@
 		output = '';
 	})
 
-	onNavigate(async ({from, to}) => {
+	onNavigate(async ({to}) => {
 		if (to?.url.pathname === '/') {
 			conversationId = 0;
 		}
@@ -173,13 +173,16 @@
 		);
 		console.log('@post-retriever:', res);
 		if (!res) throw new Error('Failed to get response');
-		const { text: reply, final } = res;
+		let { text: reply, final } = res;
+		let { thought, answer } = extractThinking(reply);
+		console.log('>>> THOUGHT', thought);
+		console.log('>>> ANSWER', answer);
 
 		responseStatus = 'idle';
 		responding = '';
 		
 		if (!conversation?.title || conversation.title === 'New conversation') {
-			generateTitle(prompt, reply);
+			generateTitle(prompt, answer);
 		}
 
 		await addMessage({
@@ -276,7 +279,8 @@
 			const parsed = await parseChatResponseStream(res);
 			({ text } = parsed);
 			if (text) {
-				await db.updateConversationTitle(conversationId, text);
+				const { answer } = extractThinking(text);
+				await db.updateConversationTitle(conversationId, answer);
 			}
 		}
 		return text;

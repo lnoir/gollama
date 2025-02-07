@@ -1,3 +1,4 @@
+import { extractThinking } from '../../../helpers';
 import type { Tool } from '../tools/tool';
 import { Processor, type ProcessParams } from './processor'
 
@@ -38,7 +39,7 @@ Available Tools:
 {
   "gollama-tools": ${JSON.stringify(this.tools.map(t => ({name: t.name, description: t.description, useWhen: t.useWhen})), null, 2)}
 }
-If none of the above tools are suitable, 'tool' should default to 'chat-response'. Always pick a tool most specific to the user query.
+If none of the above tools are suitable, 'tool' should default to 'chat-response'. Always pick the tool most specific to the user query, or that facilitates finding the answer.
 ONLY ever return the tool JSON data; include no other output or commentary; do not answer the user query; only output the tool JSON data: {"tool":"tool-name"}.
 Do not include tools not listed in the "gollama-tools" JSON.
 You MUST ONLY ever respond in this format: {"tool":"tool-name"}
@@ -49,9 +50,10 @@ You MUST ONLY ever respond in this format: {"tool":"tool-name"}
     const promptParams = {
       ...data.originalData,
       stream: false,
-      json: true
+      json: true,
+      model: 'qwen2.5:1.5b', // Make configurable
+      temperature: 0.1,
     };
-    promptParams.options = {};
     promptParams.messages = [
       { role: 'system', content: this.systemPrompt },
       ...data.originalData.messages,
@@ -59,7 +61,10 @@ You MUST ONLY ever respond in this format: {"tool":"tool-name"}
     ];
     console.log('@ToolPicker', promptParams, this.tools);
     const result = await this.getPromptResponse(promptParams);
-    console.log('@ToolPicker result...', result)
-    return JSON.parse(result);
+    const { thought, answer } = extractThinking(result);
+    console.log('@ToolPicker thought:', thought)
+    console.log('@ToolPicker result...', result);
+    console.log('@ToolPicker answer:', answer);
+    return JSON.parse(answer.replaceAll('```', ''));
   }
 }

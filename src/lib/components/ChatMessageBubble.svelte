@@ -49,6 +49,7 @@
 
 	onMount(async () => {
 		sanitizedText = await sanitize(text || '');
+		console.log({sanitizedText})
 		await tick();
 		applyCodeClipper();
 		applyExternalLinkHandling();
@@ -122,6 +123,7 @@
 	</div>
 	<div
 		class="rounded-md {classes[senderType].body}">
+		<slot name="notes" />
 		<!-- prettier-ignore -->
 		<div class="p-4 whitespace-pre-wrap">
 			{@html sanitizedText}

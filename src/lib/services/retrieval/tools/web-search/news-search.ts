@@ -1,9 +1,8 @@
-import { AbstractWebSearch } from './abstract-web-search';
-import { BraveTemplate } from './search-templates/brave';
+//import { AbstractWebSearch } from './abstract-web-search';
+import { AbstractWebSearch2 } from './abstract-web-search.2';
 import { DuckDuckGoTemplate } from './search-templates/duckduckgo';
 
-
-export class NewsSearch extends AbstractWebSearch {
+export class NewsSearch extends AbstractWebSearch2 {
   name = 'news-search';
   description = 'search the web for the latest news';
   useWhen = 'query specifically asks about real-time, current or latest news';

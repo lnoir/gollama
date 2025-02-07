@@ -222,6 +222,28 @@ export async function getOllamaResult(result: any, updater?: any) {
 	return parsed;
 }
 
+export function extractThinking(text: string) {
+	const startTag = '<think>';
+	const endTag = '</think>';
+	
+	if (!text.includes(startTag)) return {
+		answer: text,
+		thought: '' 
+	};
+
+	const hasEndTag = text.includes(endTag);
+	let [thought, answer] = text.split(hasEndTag ? endTag : startTag);
+
+	if (!text.includes(endTag)) {
+		thought = answer;
+		answer = '';
+	}
+	
+	thought = thought.replace('<think>', '');
+
+	return { thought: thought.trim(), answer: answer.trim() };
+}
+
 export function getLogger(name: string) {
 	return new Logger({
 		name,
